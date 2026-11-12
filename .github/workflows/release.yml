@@ -1,0 +1,176 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate version and master
+    if: github.event.deleted == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      commit: ${{ steps.version.outputs.commit }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Check out tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Validate release tag
+        id: version
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo '::error::Release tags must use vMAJOR.MINOR.PATCH without leading zeros or prerelease suffixes.'
+            exit 1
+          fi
+
+          git fetch --no-tags origin +refs/heads/master:refs/remotes/origin/master
+          commit=$(git rev-parse 'HEAD^{commit}')
+          if ! git merge-base --is-ancestor "$commit" refs/remotes/origin/master; then
+            echo '::error::The tagged commit must be in master history.'
+            exit 1
+          fi
+
+          printf 'commit=%s\nversion=%s\n' "$commit" "${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build (${{ matrix.platform }})
+    needs: validate
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            platform: darwin/universal
+            artifact: macos-universal
+            package: build/darwin-universal/*-macos-universal.zip
+          - runner: windows-2025
+            platform: windows/amd64
+            artifact: windows-amd64
+            package: build/windows-amd64/mygo-wallhaven-setup-*.exe
+    defaults:
+      run:
+        shell: bash
+    env:
+      CGO_ENABLED: '0'
+      WALLHAVEN_LIVE_TEST: '0'
+      BUILD_PLATFORM: ${{ matrix.platform }}
+      RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+    steps:
+      - name: Check out validated commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.validate.outputs.commit }}
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Check application
+        run: |
+          go test ./...
+          go tool mygo vet .
+
+      - name: Set application version from tag
+        run: |
+          jq --arg version "$RELEASE_VERSION" '.version = $version' mygo.json > mygo.release.json
+          mv mygo.release.json mygo.json
+
+      - name: Build macOS Universal application
+        if: runner.os == 'macOS'
+        run: |
+          make build MYGO_BUILD_FLAGS="-platform $BUILD_PLATFORM -skip-dmg"
+          codesign --verify --deep --strict 'build/darwin-universal/MyGO Wallhaven.app'
+          codesign -dv --verbose=2 'build/darwin-universal/MyGO Wallhaven.app'
+          ditto -c -k --sequesterRsrc --keepParent \
+            'build/darwin-universal/MyGO Wallhaven.app' \
+            "build/darwin-universal/mygo-wallhaven-$RELEASE_VERSION-macos-universal.zip"
+
+      - name: Build Windows x64 installer
+        if: runner.os == 'Windows'
+        run: go tool mygo build -platform "$BUILD_PLATFORM" -sign -
+
+      - name: Upload release package
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: release-${{ matrix.artifact }}
+          path: ${{ matrix.package }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
+  release:
+    name: Publish GitHub Release
+    needs: [validate, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Check out validated commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.validate.outputs.commit }}
+          fetch-depth: 0
+
+      - name: Download release packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: release-*
+          path: release
+          merge-multiple: true
+
+      - name: Recheck tag and master before publishing
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_COMMIT: ${{ needs.validate.outputs.commit }}
+        run: |
+          set -euo pipefail
+          git fetch --force origin \
+            +refs/heads/master:refs/remotes/origin/master \
+            "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+          tag_commit=$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")
+          if [[ "$tag_commit" != "$RELEASE_COMMIT" ]]; then
+            echo '::error::The tag changed after the build started.'
+            exit 1
+          fi
+          git merge-base --is-ancestor "$RELEASE_COMMIT" refs/remotes/origin/master
+
+      - name: Publish release with both packages
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" \
+              --verify-tag --draft --generate-notes \
+              --title "MyGO Wallhaven $RELEASE_TAG"
+          fi
+          gh release upload "$RELEASE_TAG" release/* --clobber
+          gh release edit "$RELEASE_TAG" --draft=false
