@@ -38,8 +38,30 @@ macOS 开发与构建统一使用 ad-hoc 签名。直接调用 MyGO CLI 时必�
   - ui 原生界面
   - ports 外部接口
   - adapters 网络、缓存、存储与系统能力
-- docs 功能清单与架构约定
+- docs 功能清单、架构约定与应用截图
 ```
+
+## 截图
+
+### 推荐首页
+
+![推荐首页](docs/screenshots/home.jpg)
+
+### 壁纸浏览
+
+![壁纸瀑布流](docs/screenshots/wallpapers.jpg)
+
+### 分类筛选
+
+![分类与高级筛选](docs/screenshots/filters.jpg)
+
+### 大图预览
+
+![大图预览](docs/screenshots/preview.jpg)
+
+### 我的收藏
+
+![我的收藏](docs/screenshots/favorites.jpg)
 
 ## Api
 
