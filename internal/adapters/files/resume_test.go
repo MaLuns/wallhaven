@@ -330,10 +330,15 @@ func TestResumable416ValidatesCompletePartialAndKeepsUnrelatedFile(t *testing.T)
 
 func TestResumableTimeoutAndExplicitDiscard(t *testing.T) {
 	body := picture(t, "png", 40, 30)
+	cut := len(body) / 2
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Range") != fmt.Sprintf("bytes=%d-", cut) || r.Header.Get("If-Range") != `"same"` {
+			t.Errorf("resume headers: range=%q if-range=%q", r.Header.Get("Range"), r.Header.Get("If-Range"))
+		}
 		w.Header().Set("ETag", `"same"`)
-		w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-		_, _ = w.Write(body[:len(body)/2])
+		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", cut, len(body)-1, len(body)))
+		w.Header().Set("Content-Length", strconv.Itoa(len(body)-cut))
+		w.WriteHeader(http.StatusPartialContent)
 		w.(http.Flusher).Flush()
 		<-r.Context().Done()
 	}))
@@ -343,6 +348,9 @@ func TestResumableTimeoutAndExplicitDiscard(t *testing.T) {
 	d := New(options)
 	directory, key := t.TempDir(), "download-abc123"
 	w := domain.Wallpaper{ID: "abc123", Path: server.URL}
+	// Establish the partial before starting the timeout. The deadline may
+	// expire during checkpoint I/O on a busy runner, before any body is read.
+	seedPartial(t, d, w, directory, key, body[:cut], int64(len(body)), `"same"`, "")
 	if _, err := d.DownloadResumable(context.Background(), w, directory, key, nil); !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("timeout=%v", err)
 	}
@@ -351,13 +359,13 @@ func TestResumableTimeoutAndExplicitDiscard(t *testing.T) {
 	if err != nil || state == nil {
 		t.Fatalf("timeout lost checkpoint: %v", err)
 	}
-	assertSavedOriginal(t, partialPath(*state), body[:len(body)/2])
+	assertSavedOriginal(t, partialPath(*state), body[:cut])
 	canceled, cancel := context.WithCancel(context.Background())
 	cancel()
 	if err := d.Discard(canceled, key); !errors.Is(err, context.Canceled) {
 		t.Fatalf("canceled discard=%v", err)
 	}
-	assertSavedOriginal(t, partialPath(*state), body[:len(body)/2])
+	assertSavedOriginal(t, partialPath(*state), body[:cut])
 	if err := d.Discard(context.Background(), key); err != nil {
 		t.Fatal(err)
 	}
