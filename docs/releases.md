@@ -24,7 +24,7 @@ gh secret set MYGO_UPDATER_PRIVATE_KEY --repo MaLuns/wallhaven \
 
 备份这把私钥；后续发布沿用同一密钥，不要重新生成或随意替换 `updates.publicKey`。已安装的版本只接受对应私钥签名的更新。
 
-更新包签名与系统代码签名是两套机制。macOS 构建继续使用 `-sign -` 做 ad-hoc 签名，不读取本机开发证书或代码签名私钥；Windows 当前没有配置 Authenticode 证书。
+更新包签名与系统代码签名是两套机制。macOS 构建统一使用 `-sign -` 做 ad-hoc 签名，不读取本机开发证书或代码签名私钥；Windows 开发、构建和发布不做系统代码签名，不配置 Authenticode 证书或签名命令。两端的自动更新归档均保留 Ed25519 签名校验。
 
 ## 发布流程
 
