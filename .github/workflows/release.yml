@@ -45,6 +45,10 @@ jobs:
             echo '::error::The tagged commit must be in master history.'
             exit 1
           fi
+          if [[ "$(jq -r .version mygo.json)" != "${RELEASE_TAG#v}" ]]; then
+            echo '::error::The tag must match the version in mygo.json.'
+            exit 1
+          fi
 
           printf 'commit=%s\nversion=%s\n' "$commit" "${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
 
@@ -67,27 +71,39 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Prepare release notes
+      - name: Check out validated commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.validate.outputs.commit }}
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Read release notes from JSON
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          go run ./.github/scripts/releasenotes \
+            -version "$RELEASE_VERSION" -o update-notes/release-notes.md
+
+      - name: Prepare release draft from JSON notes
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
-          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
         run: |
           set -euo pipefail
-          if ! gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
-            gh release create "$RELEASE_TAG" \
-              --verify-tag --draft --generate-notes \
-              --title "MyGO Wallhaven $RELEASE_TAG"
-          fi
-          mkdir -p update-notes
-          gh release view "$RELEASE_TAG" --json body --jq '.body // ""' > update-notes/body.md
-          printf '## %s\n\n' "$RELEASE_VERSION" > update-notes/release-notes.md
-          if grep -q '[^[:space:]]' update-notes/body.md; then
-            sed -E 's/^#{1,2} /### /' update-notes/body.md >> update-notes/release-notes.md
+          if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" --notes-file update-notes/release-notes.md
           else
-            printf 'MyGO Wallhaven %s\n' "$RELEASE_VERSION" >> update-notes/release-notes.md
+            gh release create "$RELEASE_TAG" \
+              --verify-tag --draft --notes-file update-notes/release-notes.md \
+              --title "MyGO Wallhaven $RELEASE_TAG"
           fi
 
       - name: Share update notes with builders

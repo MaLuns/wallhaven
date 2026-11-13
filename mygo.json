@@ -2,7 +2,7 @@
   "name": "MyGO Wallhaven",
   "slug": "mygo-wallhaven",
   "identifier": "com.maluns.mygo-wallhaven",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "license": "MIT",
   "icon": "resources/icon.png",
   "out": "build",

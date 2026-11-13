@@ -2,7 +2,6 @@ package ui
 
 import (
 	"embed"
-	"encoding/json"
 	"sync"
 
 	kit "github.com/egoist/mygo/ui"
@@ -17,11 +16,6 @@ var legacyAssets embed.FS
 
 var legacyAssetOnce sync.Once
 var legacyBitmaps map[string]kit.ImageSource
-var legacyLogs []struct {
-	Title    string   `json:"title"`
-	Time     string   `json:"time"`
-	Children []string `json:"childer"`
-}
 
 func loadLegacyAssets() {
 	legacyAssetOnce.Do(func() {
@@ -36,13 +30,6 @@ func loadLegacyAssets() {
 				panic(err)
 			}
 			legacyBitmaps[name] = bitmap
-		}
-		data, err := legacyAssets.ReadFile("assets/legacy/log.json")
-		if err != nil {
-			panic(err)
-		}
-		if err := json.Unmarshal(data, &legacyLogs); err != nil {
-			panic(err)
 		}
 	})
 }

@@ -28,13 +28,13 @@ gh secret set MYGO_UPDATER_PRIVATE_KEY --repo MaLuns/wallhaven \
 
 ## 发布流程
 
-将代码和工作流提交到 `master` 后，在该分支的提交上创建并推送新的正式版本标签，例如：
+每次发布先更新 `mygo.json` 的 `version`，并在 `internal/changelog/log.json` 最前面补上同版本日志。将代码提交到 `master` 后，在该分支的提交上创建并推送对应版本标签。以下示例版本应替换为尚未使用的新版本号：
 
 ```sh
 git switch master
 git pull --ff-only
-git tag v1.0.1
-git push origin v1.0.1
+git tag v1.1.1
+git push origin v1.1.1
 ```
 
 工作流仅接收 `v主版本.次版本.修订版本`，不接受前导零、测试版或附加后缀。标签提交必须位于远程 `master` 历史中；发布前再次校验标签仍指向本次构建的提交。旧 Electron 的 `v1.0.0` 标签已存在，应使用新版本号。
@@ -42,12 +42,18 @@ git push origin v1.0.1
 流程如下：
 
 1. 校验标签、分支、更新源及更新签名 Secret。缺少 Secret 时直接失败。
-2. 创建 Release 草稿并生成版本说明，将同一份说明写入两端更新清单。
+2. 从日志 JSON 读取该版本内容生成 Release 草稿说明，将同一份说明写入两端更新清单；没有对应日志时发布失败。
 3. 检查应用，按标签版本构建 macOS Universal（arm64 与 x86_64）及 Windows x64。
 4. 使用专用私钥签名更新归档；校验归档、增量文件的大小、SHA-256 摘要对应的 Ed25519 签名、版本和下载地址。
 5. 汇总两端产物，生成一份完整的 `SHA256SUMS`，上传成功后发布草稿并将其设为最新 Release。
 
-应用版本由 CI 从标签写入构建配置，“关于”窗口显示的版本与更新清单、发布文件保持一致。
+标签必须与 `mygo.json` 的版本一致。CI 将标签版本写入构建配置，“关于”窗口显示的版本与更新清单、发布文件保持一致。
+
+## 更新日志
+
+日志统一维护在 `internal/changelog/log.json`，按版本从新到旧排列。每项包含 `version`（不带 `v` 的正式版本号）、`date`（`YYYY-MM-DD`）和 `changes`（逐条更新内容）。旧版日志已迁入此文件，不再读取旧的素材目录日志。
+
+应用“日志”窗口直接读取该 JSON；GitHub Release 和 MyGO 更新窗口的 Markdown 说明也由同一份 JSON 生成。新增版本只需维护配置版本和 JSON 内容，无需修改 Go 代码中的日志文本。
 
 ## Release 文件
 

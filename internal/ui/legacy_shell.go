@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"github.com/MaLuns/wallhaven-electron/internal/changelog"
 	"github.com/MaLuns/wallhaven-electron/internal/domain"
 	kit "github.com/egoist/mygo/ui"
 )
@@ -146,10 +147,10 @@ func (a *App) dialog(c *kit.Context) {
 					}
 				case "日志":
 					kit.Scroll(c).Height(300).FillWidth().Children(func() {
-						kit.Column(c).Gap(16).Children(func() {
-							for _, log := range legacyLogs {
-								kit.Text(c, log.Title+"  "+log.Time).FontSize(16).Bold()
-								for _, line := range log.Children {
+						kit.Column(c).FillWidth().Gap(16).Children(func() {
+							for _, entry := range changelog.Entries() {
+								kit.Text(c, "v"+entry.Version+"  "+entry.Date).FontSize(16).Bold()
+								for _, line := range entry.Changes {
 									kit.Text(c, "· "+line).FontSize(14)
 								}
 							}
