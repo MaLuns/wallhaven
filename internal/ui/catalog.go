@@ -76,7 +76,8 @@ func (a *App) recommendations(c *kit.Context) {
 						c.Invalidate()
 					}
 					kit.Box(c.Key("strip-frame")).Height(240).Shrink(0).FillWidth().Children(func() {
-						kit.ScrollHorizontal(c.Key("strip")).Label(group.Title + "图片列表").TrackScroll(scroll).Fill().Gap(legacyCardGap).Scrollbars(false).Children(func() {
+						kit.ScrollHorizontal(c.Key("strip")).Label(group.Title + "图片列表").TrackScroll(scroll).Fill().Gap(legacyCardGap).Scrollbars(false).
+							HandleInput(func(event kit.InputEvent) bool { return recommendationWheel(scroll, event) }).Children(func() {
 							if group.Loading && len(group.Wallpapers) == 0 {
 								for i := 0; i < 5; i++ {
 									legacySkeletonCard(c.Key(i))
@@ -111,6 +112,20 @@ func (a *App) recommendations(c *kit.Context) {
 			c.Invalidate()
 		}
 	}
+}
+
+// Convert ordinary vertical mouse wheels only. Touchpads and modified input
+// keep their native axes; at either end the outer page can take the wheel.
+func recommendationWheel(scroll *kit.ScrollState, event kit.InputEvent) bool {
+	if event.Kind != kit.InputScroll || event.Precise || event.Mods != 0 || event.DX != 0 || event.DY == 0 {
+		return false
+	}
+	next := max(float32(0), min(scroll.MaxX, scroll.X+event.DY))
+	if next == scroll.X {
+		return false
+	}
+	scroll.X = next
+	return true
 }
 
 func legacySkeletonCard(c *kit.Context) {

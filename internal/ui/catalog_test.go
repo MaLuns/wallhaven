@@ -271,10 +271,83 @@ func TestRecommendationThumbnailsFollowVisibleRegion(t *testing.T) {
 	if !ok {
 		t.Fatal("missing horizontal recommendation list")
 	}
-	h.tester.Scroll(strip.X+strip.W/2, strip.Y+strip.H/2, 400, 0)
+	h.tester.Wheel(strip.X+strip.W/2, strip.Y+strip.H/2, 0, 400)
 	h.tester.Frame()
 	if !images.seen["views/4"] {
-		t.Fatal("newly visible horizontal cards were not loaded")
+		t.Fatal("mouse wheel did not load newly visible horizontal cards")
+	}
+}
+
+func TestRecommendationMouseWheelRouting(t *testing.T) {
+	h := newCatalogHarness(t)
+	strip := filterBounds(t, h.tester, "热榜图片列表")
+	x, y := strip.X+150, strip.Y+100
+	scroll := h.screen.groupScroll["hot"]
+	for _, step := range []struct{ delta, want float32 }{{400, 400}, {80, 480}, {-120, 360}} {
+		h.tester.Wheel(x, y, 0, step.delta)
+		if scroll.X != step.want || h.screen.recommendationScroll.Y != 0 {
+			t.Fatalf("wheel delta %v: strip=%v page=%v, want strip=%v page=0", step.delta, scroll.X, h.screen.recommendationScroll.Y, step.want)
+		}
+	}
+	if h.screen.groupScroll["date_added"].X != 0 || h.screen.groupScroll["favorites"].X != 0 || h.screen.groupScroll["views"].X != 0 {
+		t.Fatal("wheeling one group moved another group")
+	}
+	// Native touchpad axes and Shift+wheel retain their original routing.
+	h.tester.Scroll(x, y, 120, 0)
+	if scroll.X != 480 || h.screen.recommendationScroll.Y != 0 {
+		t.Fatal("horizontal touchpad scrolling changed")
+	}
+	h.tester.HoldModifiers(kit.Shift)
+	h.tester.Wheel(x, y, 0, 40)
+	h.tester.Advance(time.Second)
+	h.tester.HoldModifiers(0)
+	if scroll.X != 520 || h.screen.recommendationScroll.Y != 0 {
+		t.Fatal("Shift+wheel scrolling changed")
+	}
+	h.tester.Scroll(x, y, 0, 40)
+	if scroll.X != 520 || h.screen.recommendationScroll.Y != 40 {
+		t.Fatal("vertical touchpad input no longer scrolls the page")
+	}
+	// A wheel over the section title continues to scroll the page.
+	strip = filterBounds(t, h.tester, "热榜图片列表")
+	h.tester.Wheel(strip.X+150, strip.Y-30, 0, 40)
+	h.tester.Advance(time.Second)
+	if scroll.X != 520 || h.screen.recommendationScroll.Y != 80 {
+		t.Fatal("wheel outside the picture strip no longer scrolls the page")
+	}
+	click(t, h.tester, "查看壁纸 hot-1-2")
+	if state := h.controller.DetailState(); !state.Open || state.Wallpaper.ID != "hot-1-2" {
+		t.Fatal("wheel handling prevents opening a picture")
+	}
+}
+
+func TestRecommendationMouseWheelHandsOffAtStripEdges(t *testing.T) {
+	h := newCatalogHarness(t)
+	scroll := h.screen.groupScroll["hot"]
+	wheel := func(delta float32) {
+		strip := filterBounds(t, h.tester, "热榜图片列表")
+		h.tester.Wheel(strip.X+150, strip.Y+100, 0, delta)
+		h.tester.Advance(time.Second)
+	}
+	wheel(10000)
+	if scroll.X != scroll.MaxX || h.screen.recommendationScroll.Y != 0 {
+		t.Fatal("wheel did not stop at the right edge")
+	}
+	wheel(40)
+	if scroll.X != scroll.MaxX || h.screen.recommendationScroll.Y != 40 {
+		t.Fatal("right edge trapped the wheel instead of scrolling the page")
+	}
+	wheel(-100)
+	if scroll.X != scroll.MaxX-100 || h.screen.recommendationScroll.Y != 40 {
+		t.Fatal("reversing the wheel at the right edge did not move the strip")
+	}
+	wheel(-10000)
+	if scroll.X != 0 || h.screen.recommendationScroll.Y != 40 {
+		t.Fatal("wheel did not stop at the left edge")
+	}
+	wheel(-40)
+	if scroll.X != 0 || h.screen.recommendationScroll.Y != 0 {
+		t.Fatal("left edge trapped the wheel instead of scrolling the page")
 	}
 }
 
