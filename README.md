@@ -11,6 +11,8 @@ make check      # 检查
 make build      # 打包
 ```
 
+自动更新与 GitHub Releases 发布配置见 [发布说明](docs/releases.md)。
+
 ## 截图
 
 ![推荐首页](docs/screenshots/home.png)

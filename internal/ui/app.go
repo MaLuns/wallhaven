@@ -30,6 +30,8 @@ type App struct {
 	menuOpen              bool
 	dialogOpen            bool
 	dialogTitle           string
+	version               string
+	onCheckForUpdates     func()
 	onMinimize, onClose   func()
 	fullImages            DetailImageSource
 	dispatch              func(func())
@@ -67,6 +69,8 @@ type ThumbnailSource interface {
 }
 
 type Options struct {
+	Version             string
+	OnCheckForUpdates   func()
 	Images              ThumbnailSource
 	Appearance          string
 	OnMinimize, OnClose func()
@@ -85,6 +89,8 @@ func New(controller *app.Controller, options ...Options) *App {
 	loadLegacyAssets()
 	a := &App{controller: controller, filters: defaultFilters(), groupScroll: map[string]*kit.ScrollState{}, lastImageScrollX: map[string]float32{}}
 	if len(options) > 0 {
+		a.version = options[0].Version
+		a.onCheckForUpdates = options[0].OnCheckForUpdates
 		a.images = options[0].Images
 		a.appearance = options[0].Appearance
 		a.onMinimize = options[0].OnMinimize

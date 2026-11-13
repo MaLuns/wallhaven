@@ -25,8 +25,8 @@ func (a *App) titleBar(c *kit.Context) {
 		menu := legacyIconButton(c, "menu", "menu", "功能菜单", 16).Size(40, 30).OnClick(func() { a.menuOpen = !a.menuOpen })
 		kit.Popover(c.Key("function-menu"), menu, &a.menuOpen, func() {
 			kit.Grid(c).Width(180).Columns(3).Padding(5).Gap(10).Children(func() {
-				for _, item := range []struct{ title, icon, label string }{{"下载", "download", "前往下载"}, {"皮肤", "theme", "皮肤"}, {"设置", "settings", "前往设置"}, {"日志", "log", "日志"}, {"关于", "about", "关于"}} {
-					b := kit.ButtonBase(c.Key(item.title)).Label(item.label).FillWidth().Height(60).Padding(0).Background(kit.Transparent)
+				for _, item := range []struct{ title, icon, label string }{{"下载", "download", "前往下载"}, {"皮肤", "theme", "皮肤"}, {"设置", "settings", "前往设置"}, {"日志", "log", "日志"}, {"关于", "about", "关于"}, {"更新", "refresh", "更新"}} {
+					b := kit.ButtonBase(c.Key(item.title)).Label(item.label).Disabled(item.title == "更新" && a.onCheckForUpdates == nil).FillWidth().Height(60).Padding(0).Background(kit.Transparent)
 					if b.Hovered() {
 						b.TextColor(p.Accent)
 					}
@@ -46,6 +46,10 @@ func (a *App) titleBar(c *kit.Context) {
 								a.onOpenSettings()
 							} else {
 								a.controller.Navigate(domain.Settings)
+							}
+						case "更新":
+							if a.onCheckForUpdates != nil {
+								a.onCheckForUpdates()
 							}
 						default:
 							a.dialogTitle = item.title
@@ -137,6 +141,9 @@ func (a *App) dialog(c *kit.Context) {
 					})
 				case "关于":
 					kit.Text(c, "《One Wallhaven》是一个由个人开发的桌面壁纸类程序。本程序图片内容来源于 wallhaven.cc，图片版权为原作者所有。").FontSize(14).LineHeight(1.8)
+					if a.version != "" {
+						kit.Text(c, "当前版本："+a.version).FontSize(13).TextColor(p.Muted)
+					}
 				case "日志":
 					kit.Scroll(c).Height(300).FillWidth().Children(func() {
 						kit.Column(c).Gap(16).Children(func() {

@@ -48,9 +48,59 @@ jobs:
 
           printf 'commit=%s\nversion=%s\n' "$commit" "${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
 
+      - name: Require update signing key and repository configuration
+        shell: bash
+        env:
+          UPDATE_KEY_CONFIGURED: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY != '' }}
+        run: |
+          if [[ "$UPDATE_KEY_CONFIGURED" != 'true' ]]; then
+            echo '::error::Add the MYGO_UPDATER_PRIVATE_KEY repository secret before publishing updates. See docs/releases.md.'
+            exit 1
+          fi
+          test "$(jq -r .updates.github mygo.json)" = "$GITHUB_REPOSITORY"
+
+  prepare:
+    name: Prepare draft and update notes
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Prepare release notes
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" \
+              --verify-tag --draft --generate-notes \
+              --title "MyGO Wallhaven $RELEASE_TAG"
+          fi
+          mkdir -p update-notes
+          gh release view "$RELEASE_TAG" --json body --jq '.body // ""' > update-notes/body.md
+          printf '## %s\n\n' "$RELEASE_VERSION" > update-notes/release-notes.md
+          if grep -q '[^[:space:]]' update-notes/body.md; then
+            sed -E 's/^#{1,2} /### /' update-notes/body.md >> update-notes/release-notes.md
+          else
+            printf 'MyGO Wallhaven %s\n' "$RELEASE_VERSION" >> update-notes/release-notes.md
+          fi
+
+      - name: Share update notes with builders
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: update-notes
+          path: update-notes/release-notes.md
+          if-no-files-found: error
+          retention-days: 7
+
   build:
     name: Build (${{ matrix.platform }})
-    needs: validate
+    needs: [validate, prepare]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     strategy:
@@ -60,11 +110,11 @@ jobs:
           - runner: macos-15
             platform: darwin/universal
             artifact: macos-universal
-            package: build/darwin-universal/*-macos-universal.zip
+            output: build/darwin-universal
           - runner: windows-2025
             platform: windows/amd64
             artifact: windows-amd64
-            package: build/windows-amd64/mygo-wallhaven-setup-*.exe
+            output: build/windows-amd64
     defaults:
       run:
         shell: bash
@@ -72,6 +122,7 @@ jobs:
       CGO_ENABLED: '0'
       WALLHAVEN_LIVE_TEST: '0'
       BUILD_PLATFORM: ${{ matrix.platform }}
+      BUILD_OUTPUT: ${{ matrix.output }}
       RELEASE_VERSION: ${{ needs.validate.outputs.version }}
     steps:
       - name: Check out validated commit
@@ -91,15 +142,27 @@ jobs:
       - name: Check application
         run: |
           go test ./...
+          go test ./.github/scripts/releasecheck
           go tool mygo vet .
+
+      - name: Download update notes
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: update-notes
+          path: .mygo/release
 
       - name: Set application version from tag
         run: |
-          jq --arg version "$RELEASE_VERSION" '.version = $version' mygo.json > mygo.release.json
+          jq --arg version "$RELEASE_VERSION" \
+            '.version = $version | .updates.changelog = ".mygo/release/release-notes.md"' \
+            mygo.json > mygo.release.json
           mv mygo.release.json mygo.json
 
       - name: Build macOS Universal application
         if: runner.os == 'macOS'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
         run: |
           make build MYGO_BUILD_FLAGS="-platform $BUILD_PLATFORM -skip-dmg"
           codesign --verify --deep --strict 'build/darwin-universal/MyGO Wallhaven.app'
@@ -110,13 +173,36 @@ jobs:
 
       - name: Build Windows x64 installer
         if: runner.os == 'Windows'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
         run: go tool mygo build -platform "$BUILD_PLATFORM" -sign -
+
+      - name: Verify and collect signed update files
+        run: |
+          go run ./.github/scripts/releasecheck \
+            -dir "$BUILD_OUTPUT" -version "$RELEASE_VERSION" -platforms "$BUILD_PLATFORM"
+          mkdir -p build/release
+          target="${BUILD_PLATFORM/\//-}"
+          cp "$BUILD_OUTPUT/update-$target.json" \
+            "$BUILD_OUTPUT/mygo-wallhaven-$RELEASE_VERSION-$target.tar.gz" build/release/
+          if [[ "$RUNNER_OS" == 'macOS' ]]; then
+            cp "$BUILD_OUTPUT/install.sh" \
+              "$BUILD_OUTPUT/mygo-wallhaven-$RELEASE_VERSION-macos-universal.zip" build/release/
+          else
+            cp "$BUILD_OUTPUT/install.ps1" \
+              "$BUILD_OUTPUT/mygo-wallhaven-setup-$RELEASE_VERSION-amd64.exe" build/release/
+          fi
+          shopt -s nullglob
+          for delta in "$BUILD_OUTPUT"/*.delta; do
+            cp "$delta" build/release/
+          done
 
       - name: Upload release package
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: release-${{ matrix.artifact }}
-          path: ${{ matrix.package }}
+          path: build/release/
           if-no-files-found: error
           compression-level: 0
           retention-days: 7
@@ -141,6 +227,26 @@ jobs:
           pattern: release-*
           path: release
           merge-multiple: true
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Verify both update feeds and generate combined checksums
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          go run ./.github/scripts/releasecheck \
+            -dir release -version "$RELEASE_VERSION" -platforms darwin/universal,windows/amd64
+          test -s release/install.sh
+          test -s release/install.ps1
+          test -s "release/mygo-wallhaven-$RELEASE_VERSION-macos-universal.zip"
+          test -s "release/mygo-wallhaven-setup-$RELEASE_VERSION-amd64.exe"
+          (cd release && sha256sum * > ../SHA256SUMS)
+          mv SHA256SUMS release/
 
       - name: Recheck tag and master before publishing
         shell: bash
@@ -167,10 +273,5 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          if ! gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
-            gh release create "$RELEASE_TAG" \
-              --verify-tag --draft --generate-notes \
-              --title "MyGO Wallhaven $RELEASE_TAG"
-          fi
           gh release upload "$RELEASE_TAG" release/* --clobber
-          gh release edit "$RELEASE_TAG" --draft=false
+          gh release edit "$RELEASE_TAG" --draft=false --latest

@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/plugins/updater"
+	nativeupdater "github.com/egoist/mygo/plugins/updater/native"
 	kit "github.com/egoist/mygo/ui"
 
 	"github.com/MaLuns/wallhaven-electron/internal/adapters/desktop"
@@ -19,6 +21,7 @@ import (
 )
 
 func main() {
+	mygo.Use(nativeupdater.New(updater.Options{Language: "zh-Hans"}))
 	var window *mygo.Window
 	var preview *app.DesktopPreview
 	activationPending := false
@@ -143,6 +146,7 @@ func main() {
 			screen.RefreshSettings()
 		}
 		screen = nativeui.New(controller, nativeui.Options{
+			Version: mygo.App.Version(), OnCheckForUpdates: updater.CheckForUpdates,
 			Actions: actions, RevealFile: mygo.Shell.ShowItemInFolder, Images: thumbnails,
 			FullImages: images.NewDetailLoader(images.DetailOptions{Originals: originals}), Dispatch: dispatch, Appearance: "dark",
 			OnMinimize: func() { window.Minimize() }, OnClose: func() { window.Close() },
@@ -183,6 +187,12 @@ func main() {
 			activationPending = false
 		}
 		servicesClosed := false
+		// Start restoring the desktop when an update finishes installing.
+		updater.OnInstalled(func() {
+			if !servicesClosed && preview.NeedsCleanup() {
+				preview.Exit()
+			}
+		})
 		closeServices := func() {
 			if servicesClosed {
 				return

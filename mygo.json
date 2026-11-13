@@ -6,6 +6,10 @@
   "license": "MIT",
   "icon": "resources/icon.png",
   "out": "build",
+  "updates": {
+    "github": "MaLuns/wallhaven",
+    "publicKey": "Y6hOsIyiM1sK/2M+3+1u1UjatKp1wi2suCyOWZ2nHZ8="
+  },
   "macos": {
     "signingIdentity": "-"
   }
