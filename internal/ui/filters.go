@@ -87,23 +87,35 @@ func (a *App) submitSearch() {
 	}
 }
 
-// searchControls preserves the source application's 80px placeholder and
-// absolutely positioned search panel. Expanding filters overlays the result
-// list; it never reduces the list to a tiny strip.
+const (
+	compactSearchPanelHeight = float32(58)
+	searchPanelMinOpacity    = float32(.7)
+	searchPanelSideInset     = float32(20)
+	searchPanelRadius        = float32(10)
+)
+
+// The collapsed bar reserves its height above the scroll viewport. Only the
+// expanded filters overlay images, with a tint that stays at least 70% opaque.
 func (a *App) searchControls(c *kit.Context) {
 	p := legacyPalette(c)
 	windowWidth, windowHeight := c.Size()
-	panelHeight := float32(58)
+	panelHeight := compactSearchPanelHeight
+	backgroundFade := float32(1)
 	if a.advanced {
 		panelHeight = advancedFilterPanelHeight(windowWidth, windowHeight, a.filters.sorting == "排行榜")
+		backgroundFade = 0
 	}
-	kit.Box(c.Key("search-placeholder")).Label("搜索筛选区").FillWidth().Height(80).Shrink(0).ZIndex(20).Children(func() {
-		panel := kit.Column(c.Key("search-panel")).Absolute().Left(20).Right(20).Top(0).
-			Height(panelHeight).Radius(10).Padding(14).Gap(10).Clip().Draw(frostedGradientBackground(p.Canvas, 10)).
+	kit.Box(c.Key("search-placeholder")).Label("搜索筛选区").FillWidth().Height(compactSearchPanelHeight).Shrink(0).ZIndex(20).Children(func() {
+		background := kit.Box(c.Key("search-frost")).Label("搜索渐变背景").Absolute().Left(searchPanelSideInset).Right(searchPanelSideInset).Top(0).
+			Height(panelHeight).Radius(searchPanelRadius).Clip().IgnoreInput(true).Draw(frostedGradientBackground(p.Canvas, searchPanelRadius, searchPanelMinOpacity)).
+			AnimatePose(kit.Pose{Fade: backgroundFade}, kit.Animation{Duration: 180 * time.Millisecond}).
 			Transition(kit.ElementTransition{Height: true, Duration: 180 * time.Millisecond, Ease: kit.EaseOut})
 		if a.advanced {
-			panel.Shadow(5, 7, 7, 0, kit.RGBA(0, 0, 0, .28))
+			background.Shadow(5, 7, 7, 0, kit.RGBA(0, 0, 0, .28))
 		}
+		panel := kit.Column(c.Key("search-panel")).Label("搜索筛选面板").Absolute().Left(searchPanelSideInset).Right(searchPanelSideInset).Top(0).
+			Height(panelHeight).Radius(searchPanelRadius).Padding(14).Gap(10).Clip().
+			Transition(kit.ElementTransition{Height: true, Duration: 180 * time.Millisecond, Ease: kit.EaseOut})
 		panel.Children(func() {
 			kit.Row(c.Key("search-bar")).FillWidth().Height(30).Shrink(0).Gap(10).AlignItems(kit.Center).Children(func() {
 				// The legacy category controls and search field occupy one row.
@@ -157,7 +169,7 @@ type filterLayout struct {
 
 func responsiveFilterLayout(windowWidth float32) filterLayout {
 	// The panel keeps its original 20px side margins and 14px padding.
-	width := max(filterResolutionW, windowWidth-40-28-filterLabelWidth-filterLabelGap)
+	width := max(filterResolutionW, windowWidth-2*searchPanelSideInset-28-filterLabelWidth-filterLabelGap)
 	columns := func(chipWidth float32, count int) int {
 		return min(count, max(1, int((width+filterHorizontalGap)/(chipWidth+filterHorizontalGap))))
 	}
@@ -181,7 +193,7 @@ func advancedFilterContentHeight(windowWidth float32, topRange bool) float32 {
 }
 
 func advancedFilterPanelHeight(windowWidth, windowHeight float32, topRange bool) float32 {
-	return min(68+advancedFilterContentHeight(windowWidth, topRange), max(240, windowHeight-130))
+	return min(68+advancedFilterContentHeight(windowWidth, topRange), max(240, windowHeight-30-navigationHeight-20))
 }
 
 func filterLabel(c *kit.Context, label string) {

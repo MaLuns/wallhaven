@@ -36,7 +36,7 @@ func TestNavigationArtworkPreservesMinimumWindowHitTargets(t *testing.T) {
 				tester.SetScale(float32(scale))
 				controller.Navigate(domain.Components)
 				tester.Frame()
-				wantNav := kit.Rect{X: 0, Y: 30, W: 800, H: 80}
+				wantNav := kit.Rect{X: 0, Y: 30, W: 800, H: 60}
 				if nav, ok := tester.Find("主导航"); !ok || nav != wantNav {
 					t.Fatalf("navigation geometry changed: %+v want=%+v", nav, wantNav)
 				}
@@ -46,11 +46,11 @@ func TestNavigationArtworkPreservesMinimumWindowHitTargets(t *testing.T) {
 				previousRight := float32(0)
 				for _, destination := range navigationArtDestinations {
 					button, ok := tester.Find(destination.label)
-					if !ok || button.W != 94 || button.H != 80 || button.Y != 30 || button.X < previousRight || button.X+button.W > 800 {
-						t.Fatalf("%s lost its original hit area: %+v", destination.title, button)
+					if !ok || button.W != 80 || button.H != 60 || button.Y != 30 || button.X < previousRight || button.X+button.W > 800 {
+						t.Fatalf("%s lost its compact hit area: %+v", destination.title, button)
 					}
 					previousRight = button.X + button.W
-					// The original hit area extends below the 48px badge. A
+					// The hit area extends below the 40px badge. A
 					// click there must still switch pages, not just on its art.
 					tester.ClickAt(button.X+button.W/2, button.Y+button.H-3)
 					if controller.CurrentPage().ID != destination.id {
@@ -61,31 +61,45 @@ func TestNavigationArtworkPreservesMinimumWindowHitTargets(t *testing.T) {
 					}
 					tester.Move(0, 120)
 					text, ok := tester.Find(destination.title)
-					if !ok || text.W <= 0 || text.H <= 0 || text.Y < 30 || text.Y+text.H > 110 {
+					if !ok || text.W <= 0 || text.H <= 0 || text.Y < 30 || text.Y+text.H > 90 {
 						t.Fatalf("selected %s has no native title text: %+v", destination.title, text)
 					}
 					access, ok := tester.Access(destination.label)
-					if !ok || access.Disabled || access.Name != destination.label || access.Bounds.W != 94 || access.Bounds.H != 80 {
+					if !ok || access.Disabled || access.Name != destination.label || access.Bounds.W != 80 || access.Bounds.H != 60 {
 						t.Fatalf("%s lost its accessible destination: %+v", destination.title, access)
 					}
-					assertNavigationBadgePaints(t, tester, button, scale)
+					badge := assertNavigationBadgePaints(t, tester, button, scale)
+					if destination.id == domain.WallpaperPage {
+						category := filterBounds(t, tester, "全部")
+						// The former 30px gap is reduced by exactly 6px.
+						if gap := category.Y - badge.Y - badge.H; gap != 24 {
+							t.Fatalf("navigation/filter gap=%v, want24", gap)
+						}
+					}
 				}
 			})
 		}
 	}
 }
 
-func assertNavigationBadgePaints(t *testing.T, tester *kit.Tester, button kit.Rect, scale int) {
+func assertNavigationBadgePaints(t *testing.T, tester *kit.Tester, button kit.Rect, scale int) kit.Rect {
 	t.Helper()
 	blue, white := 0, 0
 	bitmap := tester.Image()
+	minX, minY := bitmap.Bounds().Max.X, bitmap.Bounds().Max.Y
+	maxX, maxY := 0, 0
 	// Sample the selected badge's region rather than its path commands. This
 	// detects missing/clipped artwork and text at either backing scale.
-	for y := int(button.Y+16) * scale; y < int(button.Y+64)*scale; y++ {
-		for x := int(button.X-1) * scale; x < int(button.X+95)*scale; x++ {
+	for y := int(button.Y) * scale; y < int(button.Y+button.H)*scale; y++ {
+		for x := int(button.X-8) * scale; x < int(button.X+button.W+8)*scale; x++ {
 			pixel := bitmap.RGBAAt(x, y)
 			if pixel.B > 210 && pixel.G > 100 && pixel.G < 220 && pixel.R < 150 {
+				if x < int(button.X)*scale || x >= int(button.X+80)*scale || y < int(button.Y+10)*scale || y >= int(button.Y+50)*scale {
+					t.Fatalf("selected artwork exceeds its compact 80x40 bounds at (%d,%d)", x, y)
+				}
 				blue++
+				minX, minY = min(minX, x), min(minY, y)
+				maxX, maxY = max(maxX, x+1), max(maxY, y+1)
 			}
 			if pixel.R > 235 && pixel.G > 235 && pixel.B > 235 {
 				white++
@@ -95,6 +109,7 @@ func assertNavigationBadgePaints(t *testing.T, tester *kit.Tester, button kit.Re
 	if blue < 1500*scale*scale || white < 50*scale*scale {
 		t.Fatalf("selected badge lost visible blue artwork/white text: blue=%d white=%d scale=%d", blue, white, scale)
 	}
+	return kit.Rect{X: float32(minX) / float32(scale), Y: float32(minY) / float32(scale), W: float32(maxX-minX) / float32(scale), H: float32(maxY-minY) / float32(scale)}
 }
 
 func TestNavigationBadgeTextAndScale(t *testing.T) {
@@ -151,7 +166,7 @@ func TestNavigationArtworkPreview(t *testing.T) {
 					t.Fatal(err)
 				}
 				tester.Move(0, 120)
-				strip := image.NewRGBA(image.Rect(0, 0, 800*scale, 80*scale))
+				strip := image.NewRGBA(image.Rect(0, 0, 800*scale, 60*scale))
 				draw.Draw(strip, strip.Bounds(), tester.Image(), image.Pt(0, 30*scale), draw.Src)
 				writeNavigationArtwork(t, strip, filepath.Join(dir, fmt.Sprintf("navigation-%s-dark-%t-%dx.png", destination.key, dark, scale)))
 			}

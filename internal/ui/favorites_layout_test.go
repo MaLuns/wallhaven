@@ -38,6 +38,7 @@ func TestFavoritesFollowSavedPreviewModeAndThumbnailShape(t *testing.T) {
 	h.wait(t, func() bool { return prefs.State().Ready })
 	settings := kit.NewTester(h.screen.SettingsView, 450, 340)
 	click(t, h.tester, "前往收藏")
+	h.tester.SetSize(1280, 800)
 	h.screen.images = images
 
 	for step, mode := range []domain.PreviewMode{domain.PreviewWaterfall, domain.PreviewTile, domain.PreviewWaterfall} {
@@ -52,6 +53,15 @@ func TestFavoritesFollowSavedPreviewModeAndThumbnailShape(t *testing.T) {
 		clear(images.visible)
 		clear(images.prefetched)
 		h.tester.Frame()
+		viewport, found := h.tester.Find("收藏壁纸列表")
+		if !found || viewport.X != 10 || viewport.W != 1260 {
+			t.Fatalf("%s favorites lost the side margins: %+v", mode, viewport)
+		}
+		left, _ := h.tester.Find("查看壁纸 0")
+		right, _ := h.tester.Find("查看壁纸 3")
+		if left.X != 10 || right.X+right.W != 1270 || right.W != 300 {
+			t.Fatalf("%s favorite columns are shifted or clipped: left=%+v right=%+v", mode, left, right)
+		}
 		if h.screen.favoritesScroll.Y != 0 {
 			t.Fatal("switching preview mode did not return favorites to the top")
 		}
@@ -92,7 +102,6 @@ func TestFavoritesFollowSavedPreviewModeAndThumbnailShape(t *testing.T) {
 		checkRequests()
 		clear(images.visible)
 		clear(images.prefetched)
-		viewport, _ := h.tester.Find("收藏壁纸列表")
 		h.tester.Scroll(viewport.X+viewport.W/2, viewport.Y+viewport.H/2, 0, 10000)
 		h.tester.Frame()
 		checkRequests()

@@ -251,11 +251,11 @@ func (a *App) searchPage(c *kit.Context) {
 	viewport := a.results.Bounds(c)
 	width, height := viewport.W, viewport.H
 	if width <= 0 {
-		width = max(legacyCardWidth, windowWidth-20)
+		width = max(legacyCardWidth, windowWidth-2*searchPanelSideInset)
 		c.Invalidate()
 	}
 	if height <= 0 {
-		height = max(200, windowHeight-210)
+		height = max(200, windowHeight-30-navigationHeight-compactSearchPanelHeight-10)
 	}
 	mode := a.previewMode()
 	if a.waterfall.ready && a.waterfall.mode != mode {
@@ -269,7 +269,8 @@ func (a *App) searchPage(c *kit.Context) {
 		tailHeight = 52
 	}
 	first, last := a.waterfall.visibleRange(a.results.Y-height*.5, a.results.Y+height*2)
-	kit.Scroll(c.Key("search-results")).Label("搜索结果").TrackScroll(&a.results).Grow(1).MinHeight(0).FillWidth().Margin(10).Children(func() {
+	// Stretch deducts both margins; a 100% width would overflow the right edge.
+	kit.Scroll(c.Key("search-results")).Label("搜索结果").TrackScroll(&a.results).Grow(1).MinHeight(0).AlignSelf(kit.Stretch).Margin(0, searchPanelSideInset, 10).Children(func() {
 		kit.Box(c.Key("waterfall-canvas")).Height(totalHeight + tailHeight).FillWidth().Shrink(0).Children(func() {
 			for i := first; i < last; i++ {
 				place := placements[i]

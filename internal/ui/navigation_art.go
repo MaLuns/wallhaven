@@ -2,9 +2,11 @@ package ui
 
 import kit "github.com/egoist/mygo/ui"
 
-// The selected navigation keeps the original 96×48 blue card and diagonal
-// highlights. Only vector decoration lives in SVG; the Chinese title remains
-// native text so the backing scale never enlarges a rasterized label.
+const navigationBadgeScale = float32(5.0 / 6)
+
+// The selected navigation scales the original 96×48 artwork to 80×40. Only
+// vector decoration lives in SVG; the Chinese title remains native text so
+// the backing scale never enlarges a rasterized label.
 var navigationCard = kit.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="96" height="48" viewBox="0 0 96 48">
 <defs><clipPath id="card"><path d="M10 0h77c6 0 9 4 8 10l-3 29c-.6 6-3.7 9-10 9H9c-6 0-9-4-8-10L3 9c.5-6 2-9 7-9Z"/></clipPath></defs>
 <path d="M10 0h77c6 0 9 4 8 10l-3 29c-.6 6-3.7 9-10 9H9c-6 0-9-4-8-10L3 9c.5-6 2-9 7-9Z" fill="#2197f9"/>
@@ -39,11 +41,11 @@ func navigationBadge(c *kit.Context, key, title string) {
 	if mark == nil {
 		mark = navigationMarks["recommend"]
 	}
-	kit.Box(c.Key("selected-"+key)).Size(96, 48).Shrink(0).IgnoreInput(true).Children(func() {
+	kit.Box(c.Key("selected-"+key)).Size(80, 40).Shrink(0).IgnoreInput(true).Children(func() {
 		kit.Image(c, navigationCard).Fill().IgnoreInput(true)
-		kit.Image(c, mark).Absolute().Left(7).Top(8).Size(32, 32).IgnoreInput(true)
-		kit.Row(c).Absolute().Left(40).Right(7).Top(0).Bottom(0).Center().IgnoreInput(true).Children(func() {
-			kit.Text(c, title).FontSize(20).FontWeight(800).TextColor(kit.RGB(255, 255, 255)).SingleLine().IgnoreInput(true)
+		kit.Image(c, mark).Absolute().Left(7*navigationBadgeScale).Top(8*navigationBadgeScale).Size(32*navigationBadgeScale, 32*navigationBadgeScale).IgnoreInput(true)
+		kit.Row(c).Absolute().Left(40 * navigationBadgeScale).Right(7 * navigationBadgeScale).Top(0).Bottom(0).Center().IgnoreInput(true).Children(func() {
+			kit.Text(c, title).FontSize(17).FontWeight(800).TextColor(kit.RGB(255, 255, 255)).SingleLine().IgnoreInput(true)
 		})
 	})
 }

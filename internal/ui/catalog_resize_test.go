@@ -25,20 +25,24 @@ func TestListResizeReflowsAndLoadsVisibleThumbnails(t *testing.T) {
 		width, height, columns, visible int
 		firstX                          float32
 	}{
-		{1200, 800, 3, 9, 140},
-		{800, 540, 2, 4, 100},
-		{1300, 800, 4, 12, 30},
+		{1200, 800, 3, 9, 130},
+		{800, 540, 2, 4, 90},
+		{1260, 800, 3, 9, 160},
+		{1279, 800, 3, 9, 169.5},
+		{1280, 800, 3, 9, 170},
+		{1299, 800, 3, 9, 179.5},
+		{1300, 800, 4, 12, 20},
 	} {
 		t.Run(fmt.Sprintf("%dx%d", size.width, size.height), func(t *testing.T) {
 			clear(images.seen)
 			h.tester.SetSize(size.width, size.height)
 			viewport, ok := h.tester.Find("搜索结果")
-			wantViewport := kit.Rect{X: 10, Y: 200, W: float32(size.width - 10), H: float32(size.height - 210)}
+			wantViewport := kit.Rect{X: 20, Y: 148, W: float32(size.width - 40), H: float32(size.height - 158)}
 			if !ok || viewport != wantViewport {
 				t.Fatalf("resized list viewport=%+v want=%+v", viewport, wantViewport)
 			}
 			for index := range size.visible {
-				want := kit.Rect{X: size.firstX + float32(index%size.columns)*320, Y: 200 + float32(index/size.columns)*228.75, W: 300, H: 168.75}
+				want := kit.Rect{X: size.firstX + float32(index%size.columns)*320, Y: 148 + float32(index/size.columns)*228.75, W: 300, H: 168.75}
 				want.H = min(want.H, viewport.Y+viewport.H-want.Y)
 				got, ok := h.tester.Find(fmt.Sprintf("查看壁纸 page-1-%d", index))
 				if !ok || got != want {

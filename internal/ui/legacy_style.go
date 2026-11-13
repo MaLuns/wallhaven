@@ -83,11 +83,12 @@ var frostedBackdrop = shader.MustCompile(`package main
 
 var Tint vec4
 var Gradient bool
+var MinOpacity float
 
 func Fragment(dst vec4, pos vec2) vec4 {
 	alpha := Tint.a
 	if Gradient {
-		alpha *= 1 - smoothstep(0, rectSize().y, pos.y)
+		alpha *= mix(1, MinOpacity, smoothstep(0, rectSize().y, pos.y))
 	}
 	return vec4(Tint.rgb*alpha, alpha) + backdropSample(pos)*(1-alpha)
 }
@@ -100,11 +101,11 @@ func frostedBackground(tint kit.Color, radius float32) func(*kit.Painter, kit.Re
 	}
 }
 
-// Fade the tint from opaque at the top to transparent at the bottom,
-// retaining the same backdrop blur throughout the panel.
-func frostedGradientBackground(tint kit.Color, radius float32) func(*kit.Painter, kit.Rect) {
+// Fade the tint from opaque to minOpacity, retaining the backdrop blur through
+// the bottom of the panel rather than fading the composite to transparency.
+func frostedGradientBackground(tint kit.Color, radius, minOpacity float32) func(*kit.Painter, kit.Rect) {
 	return func(painter *kit.Painter, bounds kit.Rect) {
-		frostedBackdrop.Draw(painter, bounds, shader.Options{Uniforms: map[string]any{"Tint": tint, "Gradient": true}, Radius: radius, BackdropBlur: 32})
+		frostedBackdrop.Draw(painter, bounds, shader.Options{Uniforms: map[string]any{"Tint": tint, "Gradient": true, "MinOpacity": minOpacity}, Radius: radius, BackdropBlur: 32})
 	}
 }
 

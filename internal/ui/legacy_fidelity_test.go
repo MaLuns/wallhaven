@@ -7,17 +7,17 @@ import (
 	kit "github.com/egoist/mygo/ui"
 )
 
-// These bounds come from the original CSS, not from the rewritten layout:
-// header30 + navigation80, fixed300×200 images and40px action bars.
+// The title bar and cards retain their original dimensions. The navigation
+// is compacted at the user's request, reducing the gap to the filters by 6px.
 func TestLegacyShellAndCardGeometry(t *testing.T) {
 	h := newCatalogHarness(t)
 	h.tester.SetSize(1300, 800)
 	for label, want := range map[string]kit.Rect{
 		"标题栏":                 {X: 0, Y: 0, W: 1300, H: 30},
-		"主导航":                 {X: 0, Y: 30, W: 1300, H: 80},
+		"主导航":                 {X: 0, Y: 30, W: 1300, H: 60},
 		"功能菜单":                {X: 1140, Y: 0, W: 40, H: 30},
-		"壁纸 date_added-1-0":   {X: 20, Y: 190, W: 300, H: 240},
-		"查看壁纸 date_added-1-0": {X: 20, Y: 190, W: 300, H: 200},
+		"壁纸 date_added-1-0":   {X: 20, Y: 170, W: 300, H: 240},
+		"查看壁纸 date_added-1-0": {X: 20, Y: 170, W: 300, H: 200},
 	} {
 		got, ok := h.tester.Find(label)
 		if !ok || got != want {
@@ -28,7 +28,9 @@ func TestLegacyShellAndCardGeometry(t *testing.T) {
 	h.pump(t, 1)
 	before, _ := h.tester.Find("搜索结果")
 	band, _ := h.tester.Find("搜索筛选区")
-	if band.Y != 110 || band.H != 80 {
+	// Images scroll below the collapsed bar; only expanded filters overlay
+	// them. The former empty strip below the controls stays removed.
+	if band.Y != 90 || band.H != 58 || before.Y != 148 {
 		t.Fatalf("search band: %+v", band)
 	}
 	click(t, h.tester, "高级筛选")

@@ -5,6 +5,11 @@ import (
 	kit "github.com/egoist/mygo/ui"
 )
 
+const (
+	navigationHeight    = float32(60)
+	navigationItemWidth = float32(80)
+)
+
 func (a *App) titleBar(c *kit.Context) {
 	p := legacyPalette(c)
 	foreground := hexColor("161616")
@@ -67,16 +72,16 @@ func (a *App) titleBar(c *kit.Context) {
 func (a *App) navigation(c *kit.Context) {
 	p := legacyPalette(c)
 	current := a.controller.CurrentPage().ID
-	kit.Row(c.Key("navigation")).Label("主导航").Height(80).Shrink(0).FillWidth().Justify(kit.Center).AlignItems(kit.Center).Children(func() {
+	kit.Row(c.Key("navigation")).Label("主导航").Height(navigationHeight).Shrink(0).FillWidth().Justify(kit.Center).AlignItems(kit.Center).Children(func() {
 		if current == domain.Downloads || current == domain.Settings {
-			legacyIconButton(c, "back", "back", "返回收藏", 20).Absolute().Left(20).Top(25).Size(30, 30).OnClick(func() { a.controller.Navigate(domain.Favorites) })
+			legacyIconButton(c, "back", "back", "返回收藏", 20).Absolute().Left(20).Top((navigationHeight-30)/2).Size(30, 30).OnClick(func() { a.controller.Navigate(domain.Favorites) })
 		}
 		for _, item := range []struct {
 			title, badge, label string
 			id                  domain.PageID
 		}{{"推荐", "recommend", "前往推荐", domain.Recommend}, {"壁纸", "wallpaper", "前往壁纸", domain.WallpaperPage}, {"组件", "component", "前往组件", domain.Components}, {"我的", "my", "前往收藏", domain.Favorites}} {
 			selected := current == item.id || item.id == domain.Favorites && (current == domain.Downloads || current == domain.Settings)
-			b := kit.ButtonBase(c.Key(string(item.id))).Label(item.label).Tooltip(item.title).Size(94, 80).Margin(0, 20, 0, 0).Padding(0).Background(kit.Transparent)
+			b := kit.ButtonBase(c.Key(string(item.id))).Label(item.label).Tooltip(item.title).Size(navigationItemWidth, navigationHeight).Margin(0, 20, 0, 0).Padding(0).Background(kit.Transparent)
 			if b.Hovered() {
 				b.TextColor(p.Accent)
 			}
@@ -84,7 +89,7 @@ func (a *App) navigation(c *kit.Context) {
 				if selected {
 					navigationBadge(c, item.badge, item.title)
 				} else {
-					kit.Text(c, item.title).FontSize(16).FontWeight(550).IgnoreInput(true)
+					kit.Text(c, item.title).FontSize(14).FontWeight(550).IgnoreInput(true)
 				}
 			})
 			b.OnClick(func() { a.controller.Navigate(item.id) })

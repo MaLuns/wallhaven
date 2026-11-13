@@ -88,7 +88,7 @@ func (a *App) favoritesPage(c *kit.Context) {
 		c.Invalidate()
 	}
 	if height <= 0 {
-		height = max(200, windowHeight-130)
+		height = max(200, windowHeight-30-navigationHeight-20)
 	}
 	mode := a.previewMode()
 	if a.favoritesLayout.ready && a.favoritesLayout.mode != mode {
@@ -96,7 +96,7 @@ func (a *App) favoritesPage(c *kit.Context) {
 	}
 	placements, totalHeight := a.favoritesLayout.updateMode(state.Wallpapers, width, a.libraryRevision, mode)
 	first, last := a.favoritesLayout.visibleRange(a.favoritesScroll.Y-height*.5, a.favoritesScroll.Y+height*2)
-	kit.Scroll(c.Key("favorite-results")).Label("收藏壁纸列表").TrackScroll(&a.favoritesScroll).Grow(1).MinHeight(0).FillWidth().Margin(10).Children(func() {
+	kit.Scroll(c.Key("favorite-results")).Label("收藏壁纸列表").TrackScroll(&a.favoritesScroll).Grow(1).MinHeight(0).AlignSelf(kit.Stretch).Margin(10).Children(func() {
 		kit.Box(c.Key("favorite-canvas")).Height(totalHeight).FillWidth().Shrink(0).Children(func() {
 			for index := first; index < last; index++ {
 				wallpaper := state.Wallpapers[index]
