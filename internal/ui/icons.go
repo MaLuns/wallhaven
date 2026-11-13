@@ -27,6 +27,8 @@ var appIcons = func() map[string]*kit.SVG {
 		"chevron-down": `<path d="m5 9 7 7 7-7"/>`,
 		"left":         `<path d="m15 5-7 7 7 7"/>`,
 		"right":        `<path d="m9 5 7 7-7 7"/>`,
+
+		"desktop-preview": `<path d="M2 12C4 7.5 7.5 5 12 5s8 2.5 10 7c-2 4.5-5.5 7-10 7S4 16.5 2 12Z"/><circle cx="12" cy="12" r="3"/>`,
 	}
 	icons := make(map[string]*kit.SVG, len(paths)+3)
 	for name, path := range paths {

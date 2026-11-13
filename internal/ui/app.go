@@ -34,6 +34,8 @@ type App struct {
 	fullImages            DetailImageSource
 	dispatch              func(func())
 	viewer                detailViewer
+	desktopPreview        *app.DesktopPreview
+	desktopViewer         desktopViewer
 	closed                bool
 	catalogSnapshot       app.SearchState
 	catalogRevision       uint64
@@ -45,6 +47,7 @@ type App struct {
 	libraryRevision       uint64
 	libraryCached         bool
 	favoritesScroll       kit.ScrollState
+	favoritesLayout       waterfallLayout
 	favoritesViewport     kit.Rect
 	favoritesWindowWidth  float32
 	favoritesWindowHeight float32
@@ -75,6 +78,7 @@ type Options struct {
 	OnOpenSettings      func()
 	OnCloseSettings     func()
 	ChooseDirectory     func(string, func(string, error))
+	DesktopPreview      *app.DesktopPreview
 }
 
 func New(controller *app.Controller, options ...Options) *App {
@@ -93,6 +97,7 @@ func New(controller *app.Controller, options ...Options) *App {
 		a.onOpenSettings = options[0].OnOpenSettings
 		a.onCloseSettings = options[0].OnCloseSettings
 		a.chooseDirectory = options[0].ChooseDirectory
+		a.desktopPreview = options[0].DesktopPreview
 	}
 	for _, key := range []string{"date_added", "hot", "favorites", "views"} {
 		a.groupScroll[key] = &kit.ScrollState{}
@@ -142,6 +147,7 @@ func (a *App) View(c *kit.Context) {
 	a.dialog(c)
 	a.detailView(c)
 	if !a.controller.DetailState().Open {
+		a.desktopPreviewStatus(c)
 		a.actionNotice(c)
 	}
 }

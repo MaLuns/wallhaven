@@ -99,7 +99,7 @@ func (a *App) searchControls(c *kit.Context) {
 	}
 	kit.Box(c.Key("search-placeholder")).Label("搜索筛选区").FillWidth().Height(80).Shrink(0).ZIndex(20).Children(func() {
 		panel := kit.Column(c.Key("search-panel")).Absolute().Left(20).Right(20).Top(0).
-			Height(panelHeight).Radius(10).Padding(14).Gap(10).Clip().Draw(frostedBackground(p.Search.Alpha(.65), 10)).
+			Height(panelHeight).Radius(10).Padding(14).Gap(10).Clip().Draw(frostedGradientBackground(p.Canvas, 10)).
 			Transition(kit.ElementTransition{Height: true, Duration: 180 * time.Millisecond, Ease: kit.EaseOut})
 		if a.advanced {
 			panel.Shadow(5, 7, 7, 0, kit.RGBA(0, 0, 0, .28))

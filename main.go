@@ -20,10 +20,16 @@ import (
 
 func main() {
 	var window *mygo.Window
+	var preview *app.DesktopPreview
 	activationPending := false
 	mygo.App.OnSecondInstance(func(_ []string, _ string) {
 		if window == nil {
 			activationPending = true
+			return
+		}
+		if preview != nil && preview.NeedsCleanup() {
+			activationPending = true
+			preview.Exit()
 			return
 		}
 		app.ActivateWindow(window)
@@ -37,14 +43,63 @@ func main() {
 			log.Fatal(err)
 		}
 		var settingsWindow *mygo.Window
+		var screen *nativeui.App
+		var previewHost *desktop.Preview
+		closePending, quitPending := false, false
+		sessionEnding := false
+		redraw := func() {
+			if window != nil {
+				window.Invalidate()
+			}
+			if settingsWindow != nil {
+				settingsWindow.Invalidate()
+			}
+			if previewHost != nil {
+				previewHost.Invalidate()
+			}
+		}
 		dispatch := func(fn func()) {
 			window.Update(func() {
 				fn()
-				if settingsWindow != nil {
-					settingsWindow.Invalidate()
+				if screen != nil {
+					screen.SyncDesktopPreview()
 				}
+				redraw()
 			})
 		}
+		previewHost = desktop.NewPreview(desktop.PreviewOptions{
+			MainWindow: func() *mygo.Window { return window }, SettingsWindow: func() *mygo.Window { return settingsWindow },
+			Wallpaper:      func(c *kit.Context) { screen.DesktopWallpaperView(c) },
+			Controls:       func(c *kit.Context) { screen.DesktopControlsView(c) },
+			ControlsHeight: nativeui.DesktopPreviewControlsHeight,
+			Previous:       func() { screen.MoveDesktopPreview(-1) },
+			Next:           func() { screen.MoveDesktopPreview(1) },
+			RequestExit:    func() { preview.Exit() },
+		})
+		preview = app.NewDesktopPreview(previewHost, func() {
+			redraw()
+			if preview.State().Phase == app.DesktopPreviewRestoreFailed {
+				closePending, quitPending = false, false
+				return
+			}
+			if preview.NeedsCleanup() {
+				return
+			}
+			if quitPending {
+				quitPending = false
+				mygo.App.Quit()
+				return
+			}
+			if closePending {
+				closePending = false
+				window.Close()
+				return
+			}
+			if activationPending && window != nil {
+				activationPending = false
+				app.ActivateWindow(window)
+			}
+		})
 		configDir, err := os.UserConfigDir()
 		if err != nil {
 			log.Fatal(err)
@@ -68,9 +123,8 @@ func main() {
 			Login: desktop.LoginItems{}, Directories: desktop.SettingsDirectories{}, Dispatch: dispatch,
 			OnChange: func(values domain.Preferences) { actions.SetDownloadDirectory(values.DownloadPath) },
 		})
-		controller := app.New(app.Options{Source: source, Prefetch: true, Dispatch: func(fn func()) { window.Update(fn) }})
-		thumbnails := images.New(images.Options{OnChange: func() { window.Invalidate() }})
-		var screen *nativeui.App
+		controller := app.New(app.Options{Source: source, Prefetch: true, Dispatch: dispatch})
+		thumbnails := images.New(images.Options{OnChange: func() { dispatch(func() {}) }})
 		openSettings := func() {
 			if settingsWindow != nil {
 				settingsWindow.Show()
@@ -93,6 +147,7 @@ func main() {
 			FullImages: images.NewDetailLoader(images.DetailOptions{Originals: originals}), Dispatch: dispatch, Appearance: "dark",
 			OnMinimize: func() { window.Minimize() }, OnClose: func() { window.Close() },
 			Preferences: preferences, OnOpenSettings: openSettings,
+			DesktopPreview: preview,
 			OnCloseSettings: func() {
 				if settingsWindow != nil {
 					settingsWindow.Close()
@@ -127,7 +182,36 @@ func main() {
 			app.ActivateWindow(window)
 			activationPending = false
 		}
-		closeServices := func() { screen.Close(); preferences.Close(); actions.Close(); controller.Close(); thumbnails.Close() }
+		servicesClosed := false
+		closeServices := func() {
+			if servicesClosed {
+				return
+			}
+			servicesClosed = true
+			preview.Close()
+			screen.Close()
+			preferences.Close()
+			actions.Close()
+			controller.Close()
+			thumbnails.Close()
+		}
+		window.OnClose(func(event *mygo.CloseEvent) {
+			if preview.NeedsCleanup() && !sessionEnding {
+				event.PreventDefault()
+				closePending = true
+				preview.Exit()
+			}
+		})
+		mygo.App.OnBeforeQuit(func(event *mygo.QuitEvent) {
+			sessionEnding = event.SessionEnding
+			if preview.NeedsCleanup() {
+				if !event.SessionEnding {
+					event.PreventDefault()
+					quitPending = true
+				}
+				preview.Exit()
+			}
+		})
 		window.OnClosed(func() { closeServices(); mygo.App.Quit() })
 		mygo.App.OnWillQuit(func(*mygo.QuitEvent) { closeServices() })
 		actions.Start()

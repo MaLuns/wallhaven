@@ -96,7 +96,7 @@ func (a *App) cardThumbnailURL(wallpaper domain.Wallpaper) string {
 
 func (a *App) useSmallCardThumbnails() bool {
 	page := a.controller.CurrentPage().ID
-	return page == domain.Recommend || page == domain.WallpaperPage && a.previewMode() == domain.PreviewTile
+	return page == domain.Recommend || (page == domain.WallpaperPage || page == domain.Favorites) && a.previewMode() == domain.PreviewTile
 }
 
 func (a *App) prefetchThumbnail(wallpaper domain.Wallpaper) {

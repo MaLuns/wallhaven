@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/MaLuns/wallhaven-electron/internal/domain"
@@ -91,20 +90,26 @@ func (a *App) favoritesPage(c *kit.Context) {
 	if height <= 0 {
 		height = max(200, windowHeight-130)
 	}
-	columns := max(1, int((width+legacyCardGap)/(legacyCardWidth+legacyCardGap)))
-	inset := float32(math.Mod(float64(width+legacyCardGap), float64(legacyCardWidth+legacyCardGap))) / 2
-	rowHeight := legacyCardImageHeight + legacyCardBarHeight + legacyCardGap
-	totalHeight := float32((len(state.Wallpapers)+columns-1)/columns) * rowHeight
-	first := max(0, int(a.favoritesScroll.Y/rowHeight)-1) * columns
-	last := min(len(state.Wallpapers), (int((a.favoritesScroll.Y+height)/rowHeight)+2)*columns)
+	mode := a.previewMode()
+	if a.favoritesLayout.ready && a.favoritesLayout.mode != mode {
+		a.favoritesScroll.Y = 0
+	}
+	placements, totalHeight := a.favoritesLayout.updateMode(state.Wallpapers, width, a.libraryRevision, mode)
+	first, last := a.favoritesLayout.visibleRange(a.favoritesScroll.Y-height*.5, a.favoritesScroll.Y+height*2)
 	kit.Scroll(c.Key("favorite-results")).Label("收藏壁纸列表").TrackScroll(&a.favoritesScroll).Grow(1).MinHeight(0).FillWidth().Margin(10).Children(func() {
 		kit.Box(c.Key("favorite-canvas")).Height(totalHeight).FillWidth().Shrink(0).Children(func() {
 			for index := first; index < last; index++ {
 				wallpaper := state.Wallpapers[index]
-				x, y := inset+float32(index%columns)*(legacyCardWidth+legacyCardGap), float32(index/columns)*rowHeight
-				visible := y+legacyCardImageHeight+legacyCardBarHeight > a.favoritesScroll.Y && y < a.favoritesScroll.Y+height
-				kit.Box(c.Key(wallpaper.ID)).Absolute().Left(x).Top(y).Size(legacyCardWidth, legacyCardImageHeight+legacyCardBarHeight).Children(func() {
-					a.wallpaperCardSized(c, wallpaper, legacyCardImageHeight, visible)
+				place := placements[index]
+				if place.y+place.imageHeight+legacyCardBarHeight < a.favoritesScroll.Y-height*.5 || place.y > a.favoritesScroll.Y+height*2 {
+					continue
+				}
+				visible := place.y+place.imageHeight+legacyCardBarHeight > a.favoritesScroll.Y && place.y < a.favoritesScroll.Y+height
+				if !visible {
+					a.prefetchThumbnail(wallpaper)
+				}
+				kit.Box(c.Key(wallpaper.ID)).Absolute().Left(place.x).Top(place.y).Size(legacyCardWidth, place.imageHeight+legacyCardBarHeight).Children(func() {
+					a.wallpaperCardSized(c, wallpaper, place.imageHeight, visible)
 				})
 			}
 		})

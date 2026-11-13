@@ -205,3 +205,128 @@ func TestDetailLocalListSnapshotSurvivesRetryAndHasNoOnlineContinuation(t *testi
 	f.controller.NextDetail()
 	assertDetailSelection(t, f.controller, "c", true, false)
 }
+
+func TestDetailStripSelectionUsesPrivateSourceListAndCancelsQueuedNext(t *testing.T) {
+	f := newFixture(t)
+	f.controller.Search(domain.DefaultSearchQuery())
+	first := f.nextRequest(t)
+	first.reply <- response{result: pageResult(1, 2, "a", "b", "c")}
+	f.nextUpdate(t)()
+	f.controller.OpenDetail(domain.Wallpaper{ID: "c"}, DetailList{Page: domain.WallpaperPage})
+	second := f.nextRequest(t)
+	f.controller.NextDetail()
+	list, index := f.controller.DetailWallpapers()
+	if index != 2 || len(list) != 3 {
+		t.Fatal("strip did not get the opening list")
+	}
+	list[0].ID = "changed"
+	f.controller.SelectDetail("unknown")
+	assertDetailSelection(t, f.controller, "c", true, true)
+	f.controller.SelectDetail("a")
+	second.reply <- response{result: pageResult(2, 2, "d")}
+	f.nextUpdate(t)()
+	assertDetailSelection(t, f.controller, "a", false, true)
+	if f.controller.DetailState().Navigation.Waiting {
+		t.Fatal("strip selection retained queued next")
+	}
+	list, index = f.controller.DetailWallpapers()
+	if index != 0 || list[0].ID != "a" || len(list) != 4 {
+		t.Fatal("strip mutated its source or lost appended results")
+	}
+}
+
+func TestDetailPaginationWithoutSelectionSharesPrefetchAndRetriesSamePage(t *testing.T) {
+	f := newFixture(t, true)
+	query := domain.DefaultSearchQuery()
+	query.Query, query.Sorting = "landscape", "random"
+	f.controller.Search(query)
+	first := f.nextRequest(t)
+	result := pageResult(1, 3, "a", "b", "c")
+	result.Seed = "ABC123"
+	first.reply <- response{result: result}
+	f.nextUpdate(t)()
+	f.controller.OpenDetail(domain.Wallpaper{ID: "a"}, DetailList{Page: domain.WallpaperPage})
+	for range 5 {
+		f.controller.LoadMoreDetail()
+	}
+	second := f.nextRequest(t)
+	committed := f.controller.SearchState().Query
+	if second.page != 2 || !reflect.DeepEqual(second.query, committed) {
+		t.Fatal("scroll pagination did not share the committed prefetch")
+	}
+	if state := f.controller.DetailPaginationState(); state.CurrentPage != 1 || !state.Loading || !state.HasMore {
+		t.Fatalf("wrong pagination state: %+v", state)
+	}
+	select {
+	case r := <-f.source.requests:
+		t.Fatalf("duplicate prefetch: %+v", r)
+	default:
+	}
+	second.reply <- response{result: pageResult(2, 3, "c", "d")}
+	f.nextUpdate(t)()
+	f.controller.LoadMoreDetail()
+	for range 5 {
+		f.controller.LoadMoreDetail()
+	}
+	third := f.nextRequest(t)
+	if third.page != 3 {
+		t.Fatal("page continuation skipped or duplicated a page")
+	}
+	third.reply <- response{err: errors.New("retry this page")}
+	f.nextUpdate(t)()
+	if f.controller.DetailPaginationState().Error == "" {
+		t.Fatal("page failure was lost away from the final image")
+	}
+	f.controller.LoadMoreDetail()
+	retry := f.nextRequest(t)
+	if retry.page != 3 || !reflect.DeepEqual(retry.query, committed) {
+		t.Fatal("retry changed the failed page or query")
+	}
+	retry.reply <- response{result: pageResult(3, 3, "d", "e")}
+	f.nextUpdate(t)()
+	assertDetailSelection(t, f.controller, "a", false, true)
+	list, index := f.controller.DetailWallpapers()
+	if index != 0 || len(list) != 5 || f.controller.DetailPaginationState().HasMore {
+		t.Fatal("pagination changed selection, retained duplicates, or did not stop at the last page")
+	}
+	f.controller.LoadMoreDetail()
+	f.controller.CloseDetail()
+	f.controller.LoadMoreDetail()
+	if f.controller.DetailPaginationState() != (DetailPaginationState{}) {
+		t.Fatal("closed detail retained source pagination")
+	}
+	select {
+	case r := <-f.source.requests:
+		t.Fatalf("unexpected request after last page/close: %+v", r)
+	default:
+	}
+}
+
+func TestDetailPaginationWithoutSelectionStaysInOpeningRecommendationGroup(t *testing.T) {
+	f := newFixture(t)
+	f.controller.Start()
+	for range 4 {
+		r := f.nextRequest(t)
+		r.reply <- response{result: pageResult(1, 2, "a", "b")}
+		f.nextUpdate(t)()
+	}
+	f.controller.OpenDetail(domain.Wallpaper{ID: "a"}, DetailList{Page: domain.Recommend, Recommendation: "hot"})
+	f.controller.LoadMoreDetail()
+	f.controller.LoadMoreDetail()
+	next := f.nextRequest(t)
+	if next.page != 2 || next.query.Sorting != "hot" {
+		t.Fatal("scroll paginated the wrong recommendation group")
+	}
+	next.reply <- response{result: pageResult(2, 2, "b", "c")}
+	f.nextUpdate(t)()
+	assertDetailSelection(t, f.controller, "a", false, true)
+	for _, group := range f.controller.Recommendations() {
+		want := 2
+		if group.Key == "hot" {
+			want = 3
+		}
+		if len(group.Wallpapers) != want {
+			t.Fatal("scroll pagination modified another group")
+		}
+	}
+}

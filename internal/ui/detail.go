@@ -48,6 +48,9 @@ func (a *App) openDetail(w domain.Wallpaper, source ...app.DetailList) {
 }
 
 func (a *App) closeDetail() {
+	if a.desktopPreview != nil {
+		a.desktopPreview.Exit()
+	}
 	if a.viewer.cancel != nil {
 		a.viewer.cancel()
 	}
@@ -119,8 +122,7 @@ func (a *App) loadOriginal(rawURL string) {
 	}()
 }
 
-func (a *App) detailView(c *kit.Context) {
-	state := a.controller.DetailState()
+func (a *App) syncDetailViewer(state app.DetailState) {
 	if !state.Open {
 		if a.viewer.id != "" {
 			if a.viewer.cancel != nil {
@@ -138,6 +140,14 @@ func (a *App) detailView(c *kit.Context) {
 		a.loadOriginal(state.Wallpaper.Path)
 	} else if state.Wallpaper.Path != "" && a.viewer.url != state.Wallpaper.Path {
 		a.loadOriginal(state.Wallpaper.Path)
+	}
+}
+
+func (a *App) detailView(c *kit.Context) {
+	state := a.controller.DetailState()
+	a.syncDetailViewer(state)
+	if !state.Open || a.desktopPreview != nil && a.desktopPreview.State().Phase == app.DesktopPreviewActive {
+		return
 	}
 	width, height := c.Size()
 	a.viewer.width, a.viewer.height = width, height
@@ -157,6 +167,7 @@ func (a *App) detailView(c *kit.Context) {
 			}
 			a.detailNavigation(c, state.Navigation, width)
 			a.actionNotice(c)
+			a.desktopPreviewStatus(c)
 		})
 	})
 	if !opened {
@@ -327,7 +338,7 @@ func (a *App) detailNavigation(c *kit.Context, navigation app.DetailNavigation, 
 }
 
 func (a *App) detailToolbar(c *kit.Context, width, height float32) {
-	toolbarHeight := 6*detailButtonSize + 5*detailButtonGap
+	toolbarHeight := 7*detailButtonSize + 6*detailButtonGap
 	kit.Column(c.Key("detail-toolbar")).Absolute().Right(20).Top(max(10, (height-toolbarHeight)/2)).Gap(detailButtonGap).Width(detailButtonSize).Children(func() {
 		for _, action := range []struct {
 			name, label string
@@ -338,6 +349,11 @@ func (a *App) detailToolbar(c *kit.Context, width, height float32) {
 			{"about", "图片信息", func() { a.viewer.showInfo = !a.viewer.showInfo }},
 		} {
 			detailIconButton(c, action.name, action.label, kit.AnchorLeft).OnClick(action.run)
+		}
+		preview := detailIconButton(c, "desktop-preview", "桌面预览", kit.AnchorLeft).
+			Disabled(a.desktopPreview == nil || !a.desktopPreview.Available() || a.desktopPreview.NeedsCleanup()).OnClick(a.enterDesktopPreview)
+		if a.desktopPreview == nil || !a.desktopPreview.Available() {
+			preview.Description("当前平台暂不支持桌面预览")
 		}
 		for _, action := range []struct{ name, label string }{{"download", "下载"}, {"wallpaper", "设为壁纸"}, {"favorite", "收藏"}} {
 			wallpaper := a.controller.DetailState().Wallpaper

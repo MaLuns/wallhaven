@@ -16,6 +16,14 @@ type DetailNavigation struct {
 	Error                string
 }
 
+// DetailPaginationState describes the source list independently of the selected
+// image. Scrolling the strip can load more without advancing that selection.
+type DetailPaginationState struct {
+	CurrentPage      int
+	Loading, HasMore bool
+	Error            string
+}
+
 type detailList struct {
 	DetailList
 	generation  uint64
@@ -25,6 +33,7 @@ type detailList struct {
 type detailListState struct {
 	wallpapers       []domain.Wallpaper
 	index            int
+	currentPage      int
 	loading, hasMore bool
 	error            string
 }
@@ -40,6 +49,7 @@ func (c *Controller) detailListState() detailListState {
 			return state
 		}
 		state.wallpapers = c.search.Wallpapers
+		state.currentPage = c.search.CurrentPage
 		state.loading, state.hasMore, state.error = c.search.Loading, c.search.HasMore, c.search.Error
 	case domain.Recommend:
 		if c.detailList.generation != c.recommendationGeneration {
@@ -48,6 +58,7 @@ func (c *Controller) detailListState() detailListState {
 		for _, group := range c.recommendations {
 			if group.Key == c.detailList.Recommendation {
 				state.wallpapers = group.Wallpapers
+				state.currentPage = group.CurrentPage
 				state.loading, state.hasMore, state.error = group.Loading, group.HasMore, group.Error
 				break
 			}
@@ -84,6 +95,52 @@ func (c *Controller) detailNavigation() DetailNavigation {
 
 func (c *Controller) PreviousDetail() { c.moveDetail(-1) }
 func (c *Controller) NextDetail()     { c.moveDetail(1) }
+
+func (c *Controller) DetailPaginationState() DetailPaginationState {
+	state := c.detailListState()
+	if c.closed || state.index < 0 {
+		return DetailPaginationState{}
+	}
+	return DetailPaginationState{CurrentPage: state.currentPage, Loading: state.loading, HasMore: state.hasMore, Error: state.error}
+}
+
+// LoadMoreDetail shares the source's in-flight request and committed query with
+// normal pagination and next-image prefetch. Explicit calls can retry a failed
+// page; automatic callers must stop while Error is nonempty.
+func (c *Controller) LoadMoreDetail() {
+	state := c.detailListState()
+	if c.closed || state.index < 0 || state.loading || !state.hasMore {
+		return
+	}
+	c.loadDetailPage()
+}
+
+// DetailWallpapers exposes a private snapshot for the desktop preview strip.
+// It stays attached to the same recommendation/search pagination as the viewer.
+func (c *Controller) DetailWallpapers() ([]domain.Wallpaper, int) {
+	state := c.detailListState()
+	if state.index < 0 && c.detail.Open {
+		return []domain.Wallpaper{c.detail.Wallpaper}, 0
+	}
+	return cloneWallpapers(state.wallpapers), state.index
+}
+
+func (c *Controller) SelectDetail(id string) {
+	if c.closed || !c.detail.Open {
+		return
+	}
+	state := c.detailListState()
+	for _, wallpaper := range state.wallpapers {
+		if wallpaper.ID == id {
+			c.detailList.pendingNext = false
+			if id != c.detail.Wallpaper.ID {
+				c.selectDetail(wallpaper)
+			}
+			c.syncDetailList()
+			return
+		}
+	}
+}
 
 func (c *Controller) moveDetail(direction int) {
 	if c.closed || !c.detail.Open {

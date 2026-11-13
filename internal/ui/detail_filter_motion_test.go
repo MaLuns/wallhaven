@@ -52,7 +52,7 @@ func TestAdvancedFiltersAnimateHeightWithoutMovingResults(t *testing.T) {
 	mid := tester.Image().RGBAAt(30, 100)
 	tester.Advance(110 * time.Millisecond)
 	end := tester.Image().RGBAAt(30, 100)
-	if start != mid || end.R != 180 || end.G != 15 || end.B != 20 || start == end {
+	if start == end || mid == end || end.R != 180 || end.G != 15 || end.B != 20 {
 		t.Fatalf("filter collapse did not retain its intermediate overlay: start=%+v middle=%+v end=%+v", start, mid, end)
 	}
 	if _, exists := tester.Find("高级筛选面板"); exists {

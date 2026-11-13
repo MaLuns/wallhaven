@@ -82,9 +82,14 @@ func (a *App) applyLegacyTheme(c *kit.Context) {
 var frostedBackdrop = shader.MustCompile(`package main
 
 var Tint vec4
+var Gradient bool
 
 func Fragment(dst vec4, pos vec2) vec4 {
-	return vec4(Tint.rgb*Tint.a, Tint.a) + backdropSample(pos)*(1-Tint.a)
+	alpha := Tint.a
+	if Gradient {
+		alpha *= 1 - smoothstep(0, rectSize().y, pos.y)
+	}
+	return vec4(Tint.rgb*alpha, alpha) + backdropSample(pos)*(1-alpha)
 }
 `)
 
@@ -92,6 +97,14 @@ func Fragment(dst vec4, pos vec2) vec4 {
 func frostedBackground(tint kit.Color, radius float32) func(*kit.Painter, kit.Rect) {
 	return func(painter *kit.Painter, bounds kit.Rect) {
 		frostedBackdrop.Draw(painter, bounds, shader.Options{Uniforms: map[string]any{"Tint": tint}, Radius: radius, BackdropBlur: 20})
+	}
+}
+
+// Fade the tint from opaque at the top to transparent at the bottom,
+// retaining the same backdrop blur throughout the panel.
+func frostedGradientBackground(tint kit.Color, radius float32) func(*kit.Painter, kit.Rect) {
+	return func(painter *kit.Painter, bounds kit.Rect) {
+		frostedBackdrop.Draw(painter, bounds, shader.Options{Uniforms: map[string]any{"Tint": tint, "Gradient": true}, Radius: radius, BackdropBlur: 32})
 	}
 }
 
