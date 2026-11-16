@@ -36,6 +36,14 @@ type EncodedOriginals interface {
 	Put(string, []byte)
 }
 
+// VersionedEncodedOriginals prevents requests started before a disk-cache
+// clear from persisting their eventual response after that clear.
+type VersionedEncodedOriginals interface {
+	EncodedOriginals
+	Generation() uint64
+	PutIfCurrent(string, []byte, uint64)
+}
+
 type DesktopWallpaper interface {
 	Set(context.Context, string) error
 }

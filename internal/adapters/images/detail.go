@@ -106,6 +106,11 @@ func (l *DetailLoader) Load(ctx context.Context, rawURL string, progress func(re
 	if err != nil || !detailURLAllowed(u) {
 		return nil, errors.New(locale.T("原图地址无效"))
 	}
+	var generation uint64
+	snapshots, stamped := l.originals.(ports.VersionedEncodedOriginals)
+	if stamped {
+		generation = snapshots.Generation()
+	}
 	ctx, cancel := context.WithTimeout(ctx, detailTimeout)
 	defer cancel()
 	select {
@@ -119,7 +124,16 @@ func (l *DetailLoader) Load(ctx context.Context, rawURL string, progress func(re
 	}
 	if l.originals != nil {
 		if data, ok := l.originals.Get(u.String()); ok {
-			return l.decode(ctx, data, progress)
+			bitmap, err := l.decode(ctx, data, progress)
+			if err == nil {
+				return bitmap, nil
+			}
+			if canceled := detailContextError(ctx, err); canceled != nil {
+				return nil, canceled
+			}
+			if cache, ok := l.originals.(interface{ Delete(string) }); ok {
+				cache.Delete(u.String())
+			}
 		}
 	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
@@ -176,7 +190,11 @@ func (l *DetailLoader) Load(ctx context.Context, rawURL string, progress func(re
 	}
 	bitmap, err := l.decode(ctx, data, progress)
 	if err == nil && l.originals != nil {
-		l.originals.Put(u.String(), data)
+		if stamped {
+			snapshots.PutIfCurrent(u.String(), data, generation)
+		} else {
+			l.originals.Put(u.String(), data)
+		}
 	}
 	return bitmap, err
 }

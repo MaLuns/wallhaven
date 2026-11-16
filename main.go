@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/plugins/updater"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/MaLuns/wallhaven-electron/internal/adapters/desktop"
 	"github.com/MaLuns/wallhaven-electron/internal/adapters/files"
+	"github.com/MaLuns/wallhaven-electron/internal/adapters/imagecache"
 	"github.com/MaLuns/wallhaven-electron/internal/adapters/images"
 	"github.com/MaLuns/wallhaven-electron/internal/adapters/storage"
 	"github.com/MaLuns/wallhaven-electron/internal/adapters/wallhaven"
@@ -119,7 +121,22 @@ func main() {
 			log.Fatal(err)
 		}
 		dataDir := filepath.Join(configDir, "mygo-wallhaven")
-		originals := files.NewOriginalCache(64 << 20)
+		cacheReady := make(chan struct{})
+		var cacheReadyOnce sync.Once
+		finishCacheSetup := func() { cacheReadyOnce.Do(func() { close(cacheReady) }) }
+		var thumbnailDisk, originalDisk *imagecache.Disk
+		if cacheDir, err := os.UserCacheDir(); err == nil {
+			cacheDir = filepath.Join(cacheDir, "mygo-wallhaven", "images-v1")
+			thumbnailDisk = imagecache.New(imagecache.Options{
+				Directory: filepath.Join(cacheDir, "thumbnails"), MaxBytes: 256 << 20,
+				MaxEntryBytes: 8 << 20, MaxEntries: 4096, Ready: cacheReady,
+			})
+			originalDisk = imagecache.New(imagecache.Options{
+				Directory: filepath.Join(cacheDir, "originals"), MaxBytes: 1 << 30,
+				MaxEntryBytes: 64 << 20, MaxEntries: 512, Ready: cacheReady,
+			})
+		}
+		originals := files.NewOriginalCacheWithDisk(64<<20, originalDisk)
 		actions := app.NewActions(app.ActionsOptions{
 			Favorites: storage.NewFavorites(filepath.Join(dataDir, "favorites.json")),
 			Transfers: storage.NewTransfers(filepath.Join(dataDir, "transfers.json")),
@@ -131,25 +148,45 @@ func main() {
 		preferences := app.NewPreferences(app.PreferencesOptions{
 			Store: storage.NewSettings(filepath.Join(dataDir, "settings.json"), defaults), Defaults: defaults,
 			Login: desktop.LoginItems{}, Directories: desktop.SettingsDirectories{}, Dispatch: dispatch,
+			Cache:    imagecache.NewManager(thumbnailDisk, originalDisk),
+			OnLoaded: finishCacheSetup,
 			OnChange: func(values domain.Preferences) { actions.SetDownloadDirectory(values.DownloadPath) },
 		})
 		controller := app.New(app.Options{Source: source, Prefetch: true, Dispatch: dispatch})
-		thumbnails := images.New(images.Options{OnChange: func() { dispatch(func() {}) }})
+		thumbnails := images.New(images.Options{Disk: thumbnailDisk, OnChange: func() { dispatch(func() {}) }})
 		openSettings := func() {
 			if settingsWindow != nil {
+				centerSettingsWindow(window, settingsWindow)
 				settingsWindow.Show()
 				settingsWindow.Focus()
 				screen.RefreshSettings()
 				return
 			}
-			settingsWindow = mygo.NewWindow(mygo.WindowOptions{
-				Title: locale.T("设置"), Width: 450, Height: 340, MinWidth: 450, MinHeight: 340, MaxWidth: 450, MaxHeight: 340,
-				Frameless: true, DisableResize: true, DisableMaximize: true, DisableFullScreen: true,
-				CornerRadius: nativeui.SettingsCornerRadius(), Transparent: nativeui.SettingsCornerRadius() > 0,
-				Content: kit.View(screen.SettingsView),
+			created := mygo.NewWindow(settingsWindowOptions(window, screen))
+			settingsWindow = created
+			reportChildError := func(err error) {
+				log.Printf("settings child window: %v", err)
+				preferences.ReportError(err)
+				created.Close()
+			}
+			cleanup, err := desktop.AttachSettingsChild(window, created, reportChildError)
+			// Register after the binding so its closed callback first releases
+			// listeners without touching an already destroyed native window.
+			created.OnClosed(func() {
+				cleanup()
+				if settingsWindow == created {
+					settingsWindow = nil
+				}
 			})
-			settingsWindow.OnClosed(func() { settingsWindow = nil })
-			settingsWindow.OnFocus(screen.RefreshSettings)
+			if err != nil {
+				reportChildError(err)
+				return
+			}
+			created.OnReadyToShow(func() {
+				centerSettingsWindow(window, created)
+				created.Show()
+			})
+			created.OnFocus(screen.RefreshSettings)
 			screen.RefreshSettings()
 		}
 		screen = nativeui.New(controller, nativeui.Options{
@@ -206,6 +243,7 @@ func main() {
 				return
 			}
 			servicesClosed = true
+			finishCacheSetup()
 			offLocaleChanged()
 			preview.Close()
 			screen.Close()
@@ -249,4 +287,22 @@ func downloadDirectoryDialogOptions(parent *mygo.Window, current string) mygo.Op
 		Parent: parent, Title: locale.T("选择下载目录"), DefaultPath: current,
 		Directory: true, CreateDirectories: true,
 	}
+}
+
+func settingsWindowOptions(parent *mygo.Window, screen *nativeui.App) mygo.WindowOptions {
+	return mygo.WindowOptions{
+		Parent: parent, Title: locale.T("设置"),
+		Width: nativeui.SettingsWindowWidth, Height: nativeui.SettingsWindowHeight, MinWidth: 480, MinHeight: 420,
+		Hidden: true, Frameless: true, DisableMaximize: true, DisableFullScreen: true,
+		CornerRadius: nativeui.SettingsCornerRadius(), Transparent: nativeui.SettingsCornerRadius() > 0,
+		Content: kit.View(screen.SettingsView),
+	}
+}
+
+func centerSettingsWindow(parent, child *mygo.Window) {
+	parentBounds, childBounds := parent.Bounds(), child.Bounds()
+	child.SetPosition(
+		parentBounds.X+(parentBounds.Width-childBounds.Width)/2,
+		parentBounds.Y+(parentBounds.Height-childBounds.Height)/2,
+	)
 }

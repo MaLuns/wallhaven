@@ -29,6 +29,7 @@ func (d *Downloader) DownloadResumable(ctx context.Context, wallpaper domain.Wal
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	ctx = originalCacheContext(ctx, d.originals)
 	if !wallpaperID.MatchString(wallpaper.ID) {
 		return "", errors.New(locale.T("壁纸编号无效"))
 	}
@@ -459,7 +460,7 @@ func (d *Downloader) rememberOriginal(ctx context.Context, url, path string) {
 	defer file.Close()
 	data, err := io.ReadAll(io.LimitReader(cancelReader{ctx, file}, d.maxBytes+1))
 	if err == nil && int64(len(data)) <= d.maxBytes {
-		d.originals.Put(url, data)
+		putOriginal(ctx, d.originals, url, data)
 	}
 }
 

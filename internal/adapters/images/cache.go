@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/MaLuns/wallhaven-electron/internal/adapters/imagecache"
 	kit "github.com/egoist/mygo/ui"
 )
 
@@ -29,6 +30,9 @@ const (
 
 type Options struct {
 	HTTPClient *http.Client
+	// Disk optionally retains validated encoded thumbnails between launches.
+	// Workers perform all disk reads and writes alongside network loading.
+	Disk *imagecache.Disk
 	// OnChange requests a redraw, such as Window.Invalidate. It must not mutate
 	// UI state: workers call it after publishing an immutable bitmap.
 	OnChange func()
@@ -43,10 +47,11 @@ type entry struct {
 	queued  *list.Element
 	// deferred marks unused lookahead discarded for memory pressure, rather
 	// than a network failure. Get can retry it immediately when it is visible.
-	deferred bool
-	retryAt  time.Time
-	size     int64
-	position *list.Element
+	deferred       bool
+	retryAt        time.Time
+	size           int64
+	position       *list.Element
+	diskGeneration uint64
 }
 
 type Cache struct {
@@ -57,6 +62,7 @@ type Cache struct {
 	limit          int64
 	closed         bool
 	client         *http.Client
+	disk           *imagecache.Disk
 	onChange       func()
 	ctx            context.Context
 	cancel         context.CancelFunc
@@ -78,7 +84,7 @@ func New(options Options) *Cache {
 	ctx, cancel := context.WithCancel(context.Background())
 	c := &Cache{
 		entries: make(map[string]*entry), limit: options.MaxBytes,
-		client: options.HTTPClient, onChange: options.OnChange,
+		client: options.HTTPClient, disk: options.Disk, onChange: options.OnChange,
 		ctx: ctx, cancel: cancel,
 	}
 	c.ready = sync.NewCond(&c.mu)
@@ -157,6 +163,7 @@ func (c *Cache) request(rawURL string, visible bool) (kit.ImageSource, bool) {
 		c.removeEntry(dropped)
 	}
 	e.loading, e.visible, e.deferred = true, visible, false
+	e.diskGeneration = c.disk.Generation()
 	if visible {
 		e.queued = c.visibleJobs.PushFront(e)
 	} else {
@@ -215,7 +222,7 @@ func (c *Cache) worker() {
 		if e == nil {
 			return
 		}
-		bitmap, size, err := c.fetch(e.url)
+		bitmap, size, err := c.fetch(e.url, e.diskGeneration)
 		c.mu.Lock()
 		if prefetch {
 			c.activePrefetch--
@@ -259,9 +266,33 @@ func (c *Cache) evictOne(protect *entry) bool {
 	return false
 }
 
-func (c *Cache) fetch(rawURL string) (*kit.Bitmap, int64, error) {
+func (c *Cache) fetch(rawURL string, generation uint64) (*kit.Bitmap, int64, error) {
 	ctx, cancel := context.WithTimeout(c.ctx, 15*time.Second)
 	defer cancel()
+	if err := ctx.Err(); err != nil {
+		return nil, 0, err
+	}
+	if c.disk != nil {
+		data, found := c.disk.Get(rawURL)
+		if err := ctx.Err(); err != nil {
+			return nil, 0, err
+		}
+		if found {
+			bitmap, size, err := c.decodeThumbnail(data)
+			if canceled := ctx.Err(); canceled != nil {
+				return nil, 0, canceled
+			}
+			if err == nil {
+				return bitmap, size, nil
+			}
+			// An interrupted or damaged file must not trap this entry in its
+			// cooldown. Remove it and try the original URL in the same job.
+			c.disk.Delete(rawURL)
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, 0, err
+	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, 0, err
@@ -282,6 +313,22 @@ func (c *Cache) fetch(rawURL string) (*kit.Bitmap, int64, error) {
 	if err != nil {
 		return nil, 0, err
 	}
+	bitmap, size, err := c.decodeThumbnail(data)
+	if err != nil {
+		return nil, 0, err
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, 0, err
+	}
+	if c.disk != nil {
+		c.disk.PutIfCurrent(rawURL, data, generation)
+	}
+	return bitmap, size, nil
+}
+
+// Disk hits and network responses share every encoded-size, dimensions and
+// decoded-memory check before a bitmap can be published or written to disk.
+func (c *Cache) decodeThumbnail(data []byte) (*kit.Bitmap, int64, error) {
 	if len(data) > maxBodyBytes {
 		return nil, 0, errors.New("thumbnail response too large")
 	}

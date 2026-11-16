@@ -23,6 +23,14 @@ type settingsFile struct {
 	Settings *domain.Preferences `json:"settings"`
 }
 
+// Pointer fields distinguish old v1 files with no cache preferences from an
+// explicit invalid zero. The embedded settings retain strict unknown-field checks.
+type storedPreferences struct {
+	domain.Preferences
+	ThumbnailCacheMiB *int64 `json:"thumbnailCacheMiB"`
+	OriginalCacheMiB  *int64 `json:"originalCacheMiB"`
+}
+
 type Settings struct {
 	mu       sync.Mutex
 	path     string
@@ -70,7 +78,10 @@ func (s *Settings) load(ctx context.Context) (domain.Preferences, error) {
 	if len(data) > maxSettingsSize {
 		return domain.Preferences{}, errors.New(locale.T("设置文件超过大小限制"))
 	}
-	var record settingsFile
+	var record struct {
+		Version  int                `json:"version"`
+		Settings *storedPreferences `json:"settings"`
+	}
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&record); err != nil {
@@ -82,10 +93,18 @@ func (s *Settings) load(ctx context.Context) (domain.Preferences, error) {
 	if record.Version != 1 || record.Settings == nil {
 		return domain.Preferences{}, errors.New(locale.T("设置文件版本或内容无效"))
 	}
-	if err := record.Settings.Validate(); err != nil {
+	values := record.Settings.Preferences
+	values.ThumbnailCacheMiB, values.OriginalCacheMiB = s.defaults.ThumbnailCacheMiB, s.defaults.OriginalCacheMiB
+	if record.Settings.ThumbnailCacheMiB != nil {
+		values.ThumbnailCacheMiB = *record.Settings.ThumbnailCacheMiB
+	}
+	if record.Settings.OriginalCacheMiB != nil {
+		values.OriginalCacheMiB = *record.Settings.OriginalCacheMiB
+	}
+	if err := values.Validate(); err != nil {
 		return domain.Preferences{}, fmt.Errorf(locale.T("设置文件内容无效：%w"), err)
 	}
-	return *record.Settings, ctx.Err()
+	return values, ctx.Err()
 }
 
 func (s *Settings) Save(ctx context.Context, values domain.Preferences) error {

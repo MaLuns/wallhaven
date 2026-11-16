@@ -66,6 +66,8 @@ type App struct {
 	chosenLanguage        func() string
 	onChangeLanguage      func(string)
 	language              string
+	thumbnailCacheMiB     int64
+	originalCacheMiB      int64
 }
 
 type ThumbnailSource interface {

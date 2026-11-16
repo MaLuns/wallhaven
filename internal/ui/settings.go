@@ -2,6 +2,7 @@ package ui
 
 import (
 	"errors"
+	"fmt"
 	"runtime"
 	"time"
 
@@ -9,6 +10,13 @@ import (
 	"github.com/MaLuns/wallhaven-electron/internal/locale"
 	"github.com/egoist/mygo/i18n"
 	kit "github.com/egoist/mygo/ui"
+)
+
+const (
+	SettingsWindowWidth   = 560
+	SettingsWindowHeight  = 620
+	settingsLabelWidth    = float32(120)
+	settingsControlHeight = float32(34)
 )
 
 // The native window and its painted frame must use the same curve. Other
@@ -20,9 +28,14 @@ func SettingsCornerRadius() int {
 	return 0
 }
 
-// SettingsView retains public/config.html's fixed 450×340 window, dark
-// background, blue frame/divider and 100px labels, with a language selector.
+// SettingsView retains the original dark frame, divider and label alignment.
+// The scrollable body also supports smaller manually resized windows.
 func (a *App) SettingsView(c *kit.Context) {
+	_, height := c.Size()
+	groupGap, pathHeight := float32(16), float32(78)
+	if height < 480 {
+		groupGap, pathHeight = 10, 60
+	}
 	theme := *kit.DarkTheme()
 	theme.Background, theme.Text, theme.Accent = hexColor("201f29"), hexColor("eeeeee"), hexColor("2d8cf0")
 	c.SetTheme(&theme)
@@ -41,9 +54,9 @@ func (a *App) SettingsView(c *kit.Context) {
 				}
 			})
 		})
-		kit.Box(c).Absolute().Left(100).Top(66).Bottom(24).Width(2).Radius(2).Background(hexColor("266294")).IgnoreInput(true)
+		kit.Box(c).Absolute().Left(124).Top(66).Bottom(24).Width(2).Radius(2).Background(hexColor("266294")).IgnoreInput(true)
 		kit.Scroll(c.Key("settings-body")).Label(locale.T("设置选项")).Grow(1).MinHeight(0).FillWidth().Children(func() {
-			kit.Column(c).FillWidth().Padding(20).Gap(12).Children(func() {
+			kit.Column(c).FillWidth().Padding(20).Gap(groupGap).Children(func() {
 				a.settingsRow(c, "语言", func() { a.languageSelector(c) })
 				if a.preferences == nil {
 					kit.Text(c, locale.T("设置服务尚未就绪")).FontSize(14)
@@ -52,7 +65,7 @@ func (a *App) SettingsView(c *kit.Context) {
 				state := a.preferences.State()
 				disabled := !state.Ready || state.Busy() || a.choosingDirectory
 				a.settingsRow(c, "预览模式", func() {
-					kit.Row(c).Gap(5).AlignItems(kit.Center).Children(func() {
+					kit.Row(c).Height(settingsRowHeight(c)).Gap(8).AlignItems(kit.Center).Children(func() {
 						kit.Text(c, locale.T("普通模式")).FontSize(14)
 						waterfall := state.Values.PreviewMode != domain.PreviewTile
 						if settingsSwitch(c.Key("preview-mode"), "瀑布流模式", &waterfall, disabled).Changed() {
@@ -66,20 +79,25 @@ func (a *App) SettingsView(c *kit.Context) {
 					})
 				})
 				a.settingsRow(c, "开机启动", func() {
-					enabled := state.Values.OpenAtLogin
-					if settingsSwitch(c.Key("open-at-login"), "开机启动开关", &enabled, disabled).Changed() {
-						a.preferences.SetOpenAtLogin(enabled)
-					}
+					kit.Row(c).Height(settingsRowHeight(c)).AlignItems(kit.Center).Children(func() {
+						enabled := state.Values.OpenAtLogin
+						if settingsSwitch(c.Key("open-at-login"), "开机启动开关", &enabled, disabled).Changed() {
+							a.preferences.SetOpenAtLogin(enabled)
+						}
+					})
 				})
 				a.settingsRow(c, "下载目录", func() {
 					kit.Column(c).FillWidth().Gap(12).Children(func() {
-						kit.Text(c, locale.T("当前目录：")+state.Values.DownloadPath).FontSize(14).LineHeight(1.4).MaxHeight(80).Clip().Tooltip(state.Values.DownloadPath)
-						kit.Row(c).Gap(20).Children(func() {
-							settingsButton(c.Key("choose-directory"), "修改目录").Disabled(disabled).OnClick(a.chooseDownloadDirectory)
-							settingsButton(c.Key("open-directory"), "打开文件位置").Disabled(disabled).OnClick(a.preferences.OpenDownloadDirectory)
+						kit.Row(c).FillWidth().MinHeight(settingsControlHeight).AlignItems(kit.Center).Children(func() {
+							kit.Text(c, locale.T("当前目录：")+state.Values.DownloadPath).Grow(1).MinWidth(0).FontSize(13).LineHeight(1.5).Wrap().MaxHeight(pathHeight).Clip().Tooltip(state.Values.DownloadPath)
+						})
+						kit.Row(c).FillWidth().Gap(12).Children(func() {
+							settingsButton(c.Key("choose-directory"), "修改目录").Basis(0).Grow(1).MinWidth(0).Disabled(disabled).OnClick(a.chooseDownloadDirectory)
+							settingsButton(c.Key("open-directory"), "打开文件位置").Basis(0).Grow(1).MinWidth(0).Disabled(disabled).OnClick(a.preferences.OpenDownloadDirectory)
 						})
 					})
 				})
+				a.settingsRow(c, "磁盘缓存", func() { a.cacheSettings(c) })
 				if state.Loading {
 					kit.Text(c, locale.T("正在加载设置…")).FontSize(12)
 				} else if state.Saving {
@@ -95,6 +113,100 @@ func (a *App) SettingsView(c *kit.Context) {
 				}
 			})
 		})
+	})
+}
+
+func cacheAmount(bytes int64) string {
+	if bytes >= 1<<30 {
+		return fmt.Sprintf("%.1f GiB", float64(bytes)/(1<<30))
+	}
+	if bytes >= 1<<20 {
+		return fmt.Sprintf("%.1f MiB", float64(bytes)/(1<<20))
+	}
+	if bytes >= 1<<10 {
+		return fmt.Sprintf("%.1f KiB", float64(bytes)/(1<<10))
+	}
+	return fmt.Sprintf("%d B", bytes)
+}
+
+func cacheCapacity(mib int64) string {
+	if mib >= 1024 && mib%1024 == 0 {
+		return fmt.Sprintf("%d GiB", mib/1024)
+	}
+	return fmt.Sprintf("%d MiB", mib)
+}
+
+func (a *App) cacheSettings(c *kit.Context) {
+	state := a.preferences.State()
+	disabled := !state.Ready || state.Busy() || a.choosingDirectory
+	_, height := c.Size()
+	gap := float32(12)
+	if height < 480 {
+		gap = 8
+	}
+	kit.Column(c).FillWidth().Gap(gap).Children(func() {
+		thumbnailUsage, originalUsage := locale.T("缩略图上限"), locale.T("原图上限")
+		if state.CacheReady {
+			thumbnailUsage = fmt.Sprintf(locale.T("缩略图：%s / %s"), cacheAmount(state.Cache.ThumbnailBytes), cacheCapacity(state.Values.ThumbnailCacheMiB))
+			originalUsage = fmt.Sprintf(locale.T("原图：%s / %s"), cacheAmount(state.Cache.OriginalBytes), cacheCapacity(state.Values.OriginalCacheMiB))
+		} else if !state.CacheBusy {
+			kit.Text(c, locale.T("缓存占用尚未读取")).FontSize(12)
+		}
+		if state.CacheBusy {
+			kit.Text(c, locale.T("正在处理缓存…")).FontSize(12)
+		}
+		cacheLimitSelector(c.Key("thumbnail-cache-limit"), "缩略图缓存上限", thumbnailUsage, &a.thumbnailCacheMiB, state.Values.ThumbnailCacheMiB,
+			[]int64{64, 128, 256, 512, 1024, 2048, 4096}, disabled, func(value int64) {
+				a.preferences.SetCacheLimits(value, state.Values.OriginalCacheMiB)
+			})
+		cacheLimitSelector(c.Key("original-cache-limit"), "原图缓存上限", originalUsage, &a.originalCacheMiB, state.Values.OriginalCacheMiB,
+			[]int64{64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384}, disabled, func(value int64) {
+				a.preferences.SetCacheLimits(state.Values.ThumbnailCacheMiB, value)
+			})
+		kit.Row(c).FillWidth().Gap(12).Margin(4, 0, 0).Children(func() {
+			settingsButton(c.Key("clear-disk-cache"), "清理磁盘缓存").Basis(0).Grow(1).MinWidth(0).Disabled(disabled).OnClick(a.preferences.ClearCache)
+			settingsButton(c.Key("refresh-cache"), "刷新").Basis(0).Grow(1).MinWidth(0).Label(locale.T("刷新缓存占用")).Disabled(disabled).OnClick(a.preferences.RefreshCache)
+		})
+		kit.Text(c, locale.T("仅清理缓存，已下载文件不受影响")).FontSize(11).LineHeight(1.5).Wrap().TextColor(hexColor("969696"))
+		if state.CacheError != "" {
+			kit.Text(c, locale.T(state.CacheError)).FontSize(12).Wrap().TextColor(hexColor("ff8f8f"))
+		}
+	})
+}
+
+func cacheLimitSelector(c *kit.Context, label, usage string, selected *int64, current int64, values []int64, disabled bool, onChange func(int64)) {
+	*selected = current
+	_, windowHeight := c.Size()
+	menuHeight := min(float32(224), float32(len(values))*28, max(float32(84), windowHeight*.55))
+	rowHeight := float32(40)
+	if windowHeight < 480 {
+		rowHeight = settingsControlHeight
+	}
+	kit.Row(c).FillWidth().MinHeight(rowHeight).AlignItems(kit.Center).Gap(12).Children(func() {
+		kit.Text(c, usage).Grow(1).MinWidth(0).FontSize(12).LineHeight(1.5).Wrap()
+		selector := kit.SelectBase(c.Key("select"), selected)
+		selector.Trigger.Label(locale.T(label)).Value(cacheCapacity(*selected)).Disabled(disabled).
+			Width(136).Shrink(0).Height(settingsControlHeight).Padding(4, 10).Radius(6).Border(1, hexColor("eeeeee")).Background(kit.Transparent).TextColor(hexColor("c2c2c2")).Children(func() {
+			kit.Row(c).FillWidth().Gap(8).AlignItems(kit.Center).Children(func() {
+				kit.Text(c, cacheCapacity(*selected)).FontSize(13).Grow(1).SingleLine().IgnoreInput(true)
+				appIcon(c, "chevron-down", 14)
+			})
+		})
+		selector.Popup(func(panel kit.Element) {
+			panel.Padding(4).Radius(6).Background(hexColor("201f29")).Border(1, hexColor("266294")).TextColor(hexColor("c2c2c2"))
+			kit.Scroll(c.Key("limit-options")).FillWidth().Height(menuHeight).Children(func() {
+				for _, value := range values {
+					item := selector.Item(value).Label(cacheCapacity(value)).Height(28).Shrink(0).Padding(5, 10).Radius(4)
+					if item.Highlighted() {
+						item.Background(hexColor("266294")).TextColor(hexColor("eeeeee"))
+					}
+					item.Children(func() { kit.Text(c, cacheCapacity(value)).FontSize(13).IgnoreInput(true) })
+				}
+			})
+		})
+		if selector.Trigger.Changed() {
+			onChange(*selected)
+		}
 	})
 }
 
@@ -118,7 +230,7 @@ func (a *App) languageSelector(c *kit.Context) {
 		}
 	}
 	selector.Trigger.Label(locale.T("界面语言")).Value(title).Disabled(a.onChangeLanguage == nil).
-		FillWidth().Height(30).Padding(4, 10).Radius(6).Border(1, hexColor("eeeeee")).Background(kit.Transparent).TextColor(hexColor("c2c2c2")).
+		FillWidth().Height(settingsRowHeight(c)).Padding(4, 10).Radius(6).Border(1, hexColor("eeeeee")).Background(kit.Transparent).TextColor(hexColor("c2c2c2")).
 		Children(func() {
 			kit.Row(c).FillWidth().AlignItems(kit.Center).Gap(8).Children(func() {
 				kit.Text(c, title).FontSize(14).Grow(1).SingleLine().IgnoreInput(true)
@@ -144,14 +256,18 @@ func (a *App) languageSelector(c *kit.Context) {
 	}
 }
 
-func (a *App) settingsRow(c *kit.Context, label string, value func()) {
-	key := label
-	fontSize := float32(14)
-	if translated := locale.T(label); translated != label {
-		label, fontSize = translated, 13
+func settingsRowHeight(c *kit.Context) float32 {
+	if _, height := c.Size(); height < 480 {
+		return 32
 	}
-	kit.Row(c.Key(key)).FillWidth().AlignItems(kit.Start).Children(func() {
-		kit.Text(c, label).Width(100).Shrink(0).FontSize(fontSize).TextColor(hexColor("969696")).Margin(2, 0, 0)
+	return settingsControlHeight
+}
+
+func (a *App) settingsRow(c *kit.Context, label string, value func()) {
+	kit.Row(c.Key(label)).FillWidth().AlignItems(kit.Start).Children(func() {
+		kit.Row(c).Width(settingsLabelWidth).Height(settingsRowHeight(c)).Shrink(0).Padding(0, 20, 0, 0).AlignItems(kit.Center).Children(func() {
+			kit.Text(c, locale.T(label)).FontSize(13).TextColor(hexColor("969696")).Wrap()
+		})
 		kit.Box(c).Grow(1).MinWidth(0).Children(value)
 	})
 }
@@ -175,11 +291,11 @@ func settingsSwitch(c *kit.Context, label string, value *bool, disabled bool) ki
 
 func settingsButton(c *kit.Context, title string) kit.Element {
 	title = locale.T(title)
-	button := kit.ButtonBase(c).Label(title).Padding(6, 16).Height(34).Radius(6).Border(1, hexColor("eeeeee")).Background(kit.Transparent).TextColor(hexColor("c2c2c2"))
+	button := kit.ButtonBase(c).Label(title).Padding(6, 10).Height(settingsControlHeight).Center().Radius(6).Border(1, hexColor("eeeeee")).Background(kit.Transparent).TextColor(hexColor("c2c2c2"))
 	if button.Hovered() {
 		button.Border(1, hexColor("4d98e7")).TextColor(hexColor("4d98e7"))
 	}
-	button.Children(func() { kit.Text(c, title).FontSize(14) })
+	button.Children(func() { kit.Text(c, title).FontSize(13).SingleLine().IgnoreInput(true) })
 	return button
 }
 

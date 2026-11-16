@@ -20,3 +20,11 @@ type SettingsDirectories interface {
 	Validate(context.Context, string) error
 	Open(context.Context, string) error
 }
+
+// CacheManager manages the disposable image caches, independently of saved
+// wallpapers and downloads. All methods are called by background workers.
+type CacheManager interface {
+	Usage(context.Context) (domain.CacheUsage, error)
+	SetLimits(context.Context, int64, int64) error
+	Clear(context.Context) error
+}

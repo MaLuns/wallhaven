@@ -5315,3 +5315,295 @@ func InterfaceLanguage() string { return In(i18n.Locale()).InterfaceLanguage() }
 func (msgs Messages) InterfaceLanguage() string {
 	return Catalog.Format(msgs.locale, "interfaceLanguage", nil)
 }
+
+// CacheThumbnailCacheLimitMustBeBetweenAndMiB says "缩略图缓存上限必须介于 64 和 4096 MiB 之间"
+// in the language the app shows.
+func CacheThumbnailCacheLimitMustBeBetweenAndMiB() string {
+	return In(i18n.Locale()).CacheThumbnailCacheLimitMustBeBetweenAndMiB()
+}
+
+// CacheThumbnailCacheLimitMustBeBetweenAndMiB says "缩略图缓存上限必须介于 64 和 4096 MiB 之间"
+// in the language of msgs.
+func (msgs Messages) CacheThumbnailCacheLimitMustBeBetweenAndMiB() string {
+	return Catalog.Format(msgs.locale, "cacheThumbnailCacheLimitMustBeBetweenAndMiB", nil)
+}
+
+// CacheOriginalImageCacheLimitMustBeBetweenAnd says "原图缓存上限必须介于 64 和 16384 MiB 之间"
+// in the language the app shows.
+func CacheOriginalImageCacheLimitMustBeBetweenAnd() string {
+	return In(i18n.Locale()).CacheOriginalImageCacheLimitMustBeBetweenAnd()
+}
+
+// CacheOriginalImageCacheLimitMustBeBetweenAnd says "原图缓存上限必须介于 64 和 16384 MiB 之间"
+// in the language of msgs.
+func (msgs Messages) CacheOriginalImageCacheLimitMustBeBetweenAnd() string {
+	return Catalog.Format(msgs.locale, "cacheOriginalImageCacheLimitMustBeBetweenAnd", nil)
+}
+
+// CacheCacheManagerIsNotReady says "缓存管理服务尚未就绪"
+// in the language the app shows.
+func CacheCacheManagerIsNotReady() string { return In(i18n.Locale()).CacheCacheManagerIsNotReady() }
+
+// CacheCacheManagerIsNotReady says "缓存管理服务尚未就绪"
+// in the language of msgs.
+func (msgs Messages) CacheCacheManagerIsNotReady() string {
+	return Catalog.Format(msgs.locale, "cacheCacheManagerIsNotReady", nil)
+}
+
+// CacheCouldNotApplyCacheLimits says "应用缓存上限失败："
+// in the language the app shows.
+func CacheCouldNotApplyCacheLimits() string { return In(i18n.Locale()).CacheCouldNotApplyCacheLimits() }
+
+// CacheCouldNotApplyCacheLimits says "应用缓存上限失败："
+// in the language of msgs.
+func (msgs Messages) CacheCouldNotApplyCacheLimits() string {
+	return Catalog.Format(msgs.locale, "cacheCouldNotApplyCacheLimits", nil)
+}
+
+// CacheCouldNotApplyCacheLimits23950c84 says "应用缓存上限失败：%w"
+// in the language the app shows.
+func CacheCouldNotApplyCacheLimits23950c84() string {
+	return In(i18n.Locale()).CacheCouldNotApplyCacheLimits23950c84()
+}
+
+// CacheCouldNotApplyCacheLimits23950c84 says "应用缓存上限失败：%w"
+// in the language of msgs.
+func (msgs Messages) CacheCouldNotApplyCacheLimits23950c84() string {
+	return Catalog.Format(msgs.locale, "cacheCouldNotApplyCacheLimits_23950c84", nil)
+}
+
+// CacheCouldNotReadCacheUsage says "读取缓存用量失败："
+// in the language the app shows.
+func CacheCouldNotReadCacheUsage() string { return In(i18n.Locale()).CacheCouldNotReadCacheUsage() }
+
+// CacheCouldNotReadCacheUsage says "读取缓存用量失败："
+// in the language of msgs.
+func (msgs Messages) CacheCouldNotReadCacheUsage() string {
+	return Catalog.Format(msgs.locale, "cacheCouldNotReadCacheUsage", nil)
+}
+
+// CacheCouldNotClearCache says "清理缓存失败："
+// in the language the app shows.
+func CacheCouldNotClearCache() string { return In(i18n.Locale()).CacheCouldNotClearCache() }
+
+// CacheCouldNotClearCache says "清理缓存失败："
+// in the language of msgs.
+func (msgs Messages) CacheCouldNotClearCache() string {
+	return Catalog.Format(msgs.locale, "cacheCouldNotClearCache", nil)
+}
+
+// CacheCouldNotRestoreCacheLimits says "%w；恢复缓存上限失败：%v"
+// in the language the app shows.
+func CacheCouldNotRestoreCacheLimits() string {
+	return In(i18n.Locale()).CacheCouldNotRestoreCacheLimits()
+}
+
+// CacheCouldNotRestoreCacheLimits says "%w；恢复缓存上限失败：%v"
+// in the language of msgs.
+func (msgs Messages) CacheCouldNotRestoreCacheLimits() string {
+	return Catalog.Format(msgs.locale, "cacheCouldNotRestoreCacheLimits", nil)
+}
+
+// CacheCouldNotRestoreCacheSettings says "%w；恢复缓存设置失败：%v"
+// in the language the app shows.
+func CacheCouldNotRestoreCacheSettings() string {
+	return In(i18n.Locale()).CacheCouldNotRestoreCacheSettings()
+}
+
+// CacheCouldNotRestoreCacheSettings says "%w；恢复缓存设置失败：%v"
+// in the language of msgs.
+func (msgs Messages) CacheCouldNotRestoreCacheSettings() string {
+	return Catalog.Format(msgs.locale, "cacheCouldNotRestoreCacheSettings", nil)
+}
+
+// CacheDiskCache says "磁盘缓存"
+// in the language the app shows.
+func CacheDiskCache() string { return In(i18n.Locale()).CacheDiskCache() }
+
+// CacheDiskCache says "磁盘缓存"
+// in the language of msgs.
+func (msgs Messages) CacheDiskCache() string {
+	return Catalog.Format(msgs.locale, "cacheDiskCache", nil)
+}
+
+// CacheThumbnails says "缩略图：%s / %s"
+// in the language the app shows.
+func CacheThumbnails() string { return In(i18n.Locale()).CacheThumbnails() }
+
+// CacheThumbnails says "缩略图：%s / %s"
+// in the language of msgs.
+func (msgs Messages) CacheThumbnails() string {
+	return Catalog.Format(msgs.locale, "cacheThumbnails", nil)
+}
+
+// CacheOriginals says "原图：%s / %s"
+// in the language the app shows.
+func CacheOriginals() string { return In(i18n.Locale()).CacheOriginals() }
+
+// CacheOriginals says "原图：%s / %s"
+// in the language of msgs.
+func (msgs Messages) CacheOriginals() string {
+	return Catalog.Format(msgs.locale, "cacheOriginals", nil)
+}
+
+// CacheCacheUsageHasNotBeenRead says "缓存占用尚未读取"
+// in the language the app shows.
+func CacheCacheUsageHasNotBeenRead() string { return In(i18n.Locale()).CacheCacheUsageHasNotBeenRead() }
+
+// CacheCacheUsageHasNotBeenRead says "缓存占用尚未读取"
+// in the language of msgs.
+func (msgs Messages) CacheCacheUsageHasNotBeenRead() string {
+	return Catalog.Format(msgs.locale, "cacheCacheUsageHasNotBeenRead", nil)
+}
+
+// CacheWorkingOnCache says "正在处理缓存…"
+// in the language the app shows.
+func CacheWorkingOnCache() string { return In(i18n.Locale()).CacheWorkingOnCache() }
+
+// CacheWorkingOnCache says "正在处理缓存…"
+// in the language of msgs.
+func (msgs Messages) CacheWorkingOnCache() string {
+	return Catalog.Format(msgs.locale, "cacheWorkingOnCache", nil)
+}
+
+// CacheThumbnailCacheLimit says "缩略图缓存上限"
+// in the language the app shows.
+func CacheThumbnailCacheLimit() string { return In(i18n.Locale()).CacheThumbnailCacheLimit() }
+
+// CacheThumbnailCacheLimit says "缩略图缓存上限"
+// in the language of msgs.
+func (msgs Messages) CacheThumbnailCacheLimit() string {
+	return Catalog.Format(msgs.locale, "cacheThumbnailCacheLimit", nil)
+}
+
+// CacheOriginalCacheLimit says "原图缓存上限"
+// in the language the app shows.
+func CacheOriginalCacheLimit() string { return In(i18n.Locale()).CacheOriginalCacheLimit() }
+
+// CacheOriginalCacheLimit says "原图缓存上限"
+// in the language of msgs.
+func (msgs Messages) CacheOriginalCacheLimit() string {
+	return Catalog.Format(msgs.locale, "cacheOriginalCacheLimit", nil)
+}
+
+// CacheThumbnailLimit says "缩略图上限"
+// in the language the app shows.
+func CacheThumbnailLimit() string { return In(i18n.Locale()).CacheThumbnailLimit() }
+
+// CacheThumbnailLimit says "缩略图上限"
+// in the language of msgs.
+func (msgs Messages) CacheThumbnailLimit() string {
+	return Catalog.Format(msgs.locale, "cacheThumbnailLimit", nil)
+}
+
+// CacheOriginalLimit says "原图上限"
+// in the language the app shows.
+func CacheOriginalLimit() string { return In(i18n.Locale()).CacheOriginalLimit() }
+
+// CacheOriginalLimit says "原图上限"
+// in the language of msgs.
+func (msgs Messages) CacheOriginalLimit() string {
+	return Catalog.Format(msgs.locale, "cacheOriginalLimit", nil)
+}
+
+// CacheClearDiskCache says "清理磁盘缓存"
+// in the language the app shows.
+func CacheClearDiskCache() string { return In(i18n.Locale()).CacheClearDiskCache() }
+
+// CacheClearDiskCache says "清理磁盘缓存"
+// in the language of msgs.
+func (msgs Messages) CacheClearDiskCache() string {
+	return Catalog.Format(msgs.locale, "cacheClearDiskCache", nil)
+}
+
+// CacheRefreshCacheUsage says "刷新缓存占用"
+// in the language the app shows.
+func CacheRefreshCacheUsage() string { return In(i18n.Locale()).CacheRefreshCacheUsage() }
+
+// CacheRefreshCacheUsage says "刷新缓存占用"
+// in the language of msgs.
+func (msgs Messages) CacheRefreshCacheUsage() string {
+	return Catalog.Format(msgs.locale, "cacheRefreshCacheUsage", nil)
+}
+
+// CacheRefresh says "刷新"
+// in the language the app shows.
+func CacheRefresh() string { return In(i18n.Locale()).CacheRefresh() }
+
+// CacheRefresh says "刷新"
+// in the language of msgs.
+func (msgs Messages) CacheRefresh() string {
+	return Catalog.Format(msgs.locale, "cacheRefresh", nil)
+}
+
+// CacheClearsCachedImagesKeepsDownloadedFiles says "仅清理缓存，已下载文件不受影响"
+// in the language the app shows.
+func CacheClearsCachedImagesKeepsDownloadedFiles() string {
+	return In(i18n.Locale()).CacheClearsCachedImagesKeepsDownloadedFiles()
+}
+
+// CacheClearsCachedImagesKeepsDownloadedFiles says "仅清理缓存，已下载文件不受影响"
+// in the language of msgs.
+func (msgs Messages) CacheClearsCachedImagesKeepsDownloadedFiles() string {
+	return Catalog.Format(msgs.locale, "cacheClearsCachedImagesKeepsDownloadedFiles", nil)
+}
+
+// CacheCacheLimitsMustBeGreaterThanZero says "缓存上限必须大于零"
+// in the language the app shows.
+func CacheCacheLimitsMustBeGreaterThanZero() string {
+	return In(i18n.Locale()).CacheCacheLimitsMustBeGreaterThanZero()
+}
+
+// CacheCacheLimitsMustBeGreaterThanZero says "缓存上限必须大于零"
+// in the language of msgs.
+func (msgs Messages) CacheCacheLimitsMustBeGreaterThanZero() string {
+	return Catalog.Format(msgs.locale, "cacheCacheLimitsMustBeGreaterThanZero", nil)
+}
+
+// CacheCouldNotCompletelyClearDiskCache says "未能完全清理磁盘缓存：%w"
+// in the language the app shows.
+func CacheCouldNotCompletelyClearDiskCache() string {
+	return In(i18n.Locale()).CacheCouldNotCompletelyClearDiskCache()
+}
+
+// CacheCouldNotCompletelyClearDiskCache says "未能完全清理磁盘缓存：%w"
+// in the language of msgs.
+func (msgs Messages) CacheCouldNotCompletelyClearDiskCache() string {
+	return Catalog.Format(msgs.locale, "cacheCouldNotCompletelyClearDiskCache", nil)
+}
+
+// SettingsChildWindowUnavailable says "设置窗口或主窗口不可用"
+// in the language the app shows.
+func SettingsChildWindowUnavailable() string {
+	return In(i18n.Locale()).SettingsChildWindowUnavailable()
+}
+
+// SettingsChildWindowUnavailable says "设置窗口或主窗口不可用"
+// in the language of msgs.
+func (msgs Messages) SettingsChildWindowUnavailable() string {
+	return Catalog.Format(msgs.locale, "settingsChildWindowUnavailable", nil)
+}
+
+// SettingsChildWindowHasAnotherParent says "设置窗口已关联其他父窗口"
+// in the language the app shows.
+func SettingsChildWindowHasAnotherParent() string {
+	return In(i18n.Locale()).SettingsChildWindowHasAnotherParent()
+}
+
+// SettingsChildWindowHasAnotherParent says "设置窗口已关联其他父窗口"
+// in the language of msgs.
+func (msgs Messages) SettingsChildWindowHasAnotherParent() string {
+	return Catalog.Format(msgs.locale, "settingsChildWindowHasAnotherParent", nil)
+}
+
+// SettingsChildWindowAttachmentFailed says "无法将设置窗口关联到主窗口"
+// in the language the app shows.
+func SettingsChildWindowAttachmentFailed() string {
+	return In(i18n.Locale()).SettingsChildWindowAttachmentFailed()
+}
+
+// SettingsChildWindowAttachmentFailed says "无法将设置窗口关联到主窗口"
+// in the language of msgs.
+func (msgs Messages) SettingsChildWindowAttachmentFailed() string {
+	return Catalog.Format(msgs.locale, "settingsChildWindowAttachmentFailed", nil)
+}
