@@ -5607,3 +5607,53 @@ func SettingsChildWindowAttachmentFailed() string {
 func (msgs Messages) SettingsChildWindowAttachmentFailed() string {
 	return Catalog.Format(msgs.locale, "settingsChildWindowAttachmentFailed", nil)
 }
+
+// Release111Languages says "新增简体中文与英文适配，支持跟随系统语言和在设置中切换。"
+// in the language the app shows.
+func Release111Languages() string { return In(i18n.Locale()).Release111Languages() }
+
+// Release111Languages says "新增简体中文与英文适配，支持跟随系统语言和在设置中切换。"
+// in the language of msgs.
+func (msgs Messages) Release111Languages() string {
+	return Catalog.Format(msgs.locale, "release111Languages", nil)
+}
+
+// Release111Prefetch says "优化壁纸列表预加载，滚动接近底部时提前加载下一页与缩略图。"
+// in the language the app shows.
+func Release111Prefetch() string { return In(i18n.Locale()).Release111Prefetch() }
+
+// Release111Prefetch says "优化壁纸列表预加载，滚动接近底部时提前加载下一页与缩略图。"
+// in the language of msgs.
+func (msgs Messages) Release111Prefetch() string {
+	return Catalog.Format(msgs.locale, "release111Prefetch", nil)
+}
+
+// Release111DiskCache says "新增缩略图与原图磁盘缓存，重启后可复用，并支持查看占用、清理及调整容量上限。"
+// in the language the app shows.
+func Release111DiskCache() string { return In(i18n.Locale()).Release111DiskCache() }
+
+// Release111DiskCache says "新增缩略图与原图磁盘缓存，重启后可复用，并支持查看占用、清理及调整容量上限。"
+// in the language of msgs.
+func (msgs Messages) Release111DiskCache() string {
+	return Catalog.Format(msgs.locale, "release111DiskCache", nil)
+}
+
+// Release111SettingsChild says "macOS 设置窗口使用原生子窗体关联，打开时居中于主窗口，支持拖拽与调整大小。"
+// in the language the app shows.
+func Release111SettingsChild() string { return In(i18n.Locale()).Release111SettingsChild() }
+
+// Release111SettingsChild says "macOS 设置窗口使用原生子窗体关联，打开时居中于主窗口，支持拖拽与调整大小。"
+// in the language of msgs.
+func (msgs Messages) Release111SettingsChild() string {
+	return Catalog.Format(msgs.locale, "release111SettingsChild", nil)
+}
+
+// Release111SettingsLayout says "整理设置界面的标签、按钮及缓存区域排版，优化长目录路径和小窗口下拉菜单显示。"
+// in the language the app shows.
+func Release111SettingsLayout() string { return In(i18n.Locale()).Release111SettingsLayout() }
+
+// Release111SettingsLayout says "整理设置界面的标签、按钮及缓存区域排版，优化长目录路径和小窗口下拉菜单显示。"
+// in the language of msgs.
+func (msgs Messages) Release111SettingsLayout() string {
+	return Catalog.Format(msgs.locale, "release111SettingsLayout", nil)
+}

@@ -514,5 +514,10 @@
   "cacheCouldNotCompletelyClearDiskCache": "Could not completely clear disk cache: %w",
   "settingsChildWindowUnavailable": "The settings window or main window is unavailable",
   "settingsChildWindowHasAnotherParent": "The settings window is already attached to another parent window",
-  "settingsChildWindowAttachmentFailed": "Could not attach the settings window to the main window"
+  "settingsChildWindowAttachmentFailed": "Could not attach the settings window to the main window",
+  "release111Languages": "Added Simplified Chinese and English, with system language detection and a language selector in Settings.",
+  "release111Prefetch": "Improved wallpaper preloading by fetching the next page and thumbnails before scrolling reaches the bottom.",
+  "release111DiskCache": "Added persistent thumbnail and original image caches with usage statistics, cleanup, and adjustable size limits.",
+  "release111SettingsChild": "Settings on macOS now uses a native child window, opens centered over the main window, and supports dragging and resizing.",
+  "release111SettingsLayout": "Aligned Settings labels, buttons, and cache controls, and improved long folder paths and dropdowns in smaller windows."
 }
