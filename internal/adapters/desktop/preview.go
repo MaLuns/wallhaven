@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo"
 	kit "github.com/egoist/mygo/ui"
 
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
 	"github.com/MaLuns/wallhaven-electron/internal/ports"
 )
 
@@ -60,29 +61,29 @@ func (p *Preview) Available() bool { return p.platform.available() }
 
 func (p *Preview) Open(complete func(error)) {
 	if !p.Available() {
-		complete(errors.New("当前平台暂不支持桌面预览"))
+		complete(errors.New(locale.T("当前平台暂不支持桌面预览")))
 		return
 	}
 	if p.options.MainWindow == nil || p.options.Wallpaper == nil || p.options.Controls == nil || p.options.ControlsHeight <= 0 {
-		complete(errors.New("桌面预览服务尚未就绪"))
+		complete(errors.New(locale.T("桌面预览服务尚未就绪")))
 		return
 	}
 	if p.main != nil {
-		complete(errors.New("桌面预览尚未退出"))
+		complete(errors.New(locale.T("桌面预览尚未退出")))
 		return
 	}
 	main := p.options.MainWindow()
 	if main == nil || main.IsDestroyed() {
-		complete(errors.New("主窗口不可用"))
+		complete(errors.New(locale.T("主窗口不可用")))
 		return
 	}
 	if main.IsFullScreen() {
-		complete(errors.New("请先退出应用全屏，再使用桌面预览"))
+		complete(errors.New(locale.T("请先退出应用全屏，再使用桌面预览")))
 		return
 	}
 	displays := mygo.Screen.Displays()
 	if len(displays) == 0 {
-		complete(errors.New("未找到可用屏幕"))
+		complete(errors.New(locale.T("未找到可用屏幕")))
 		return
 	}
 	p.request++
@@ -94,7 +95,7 @@ func (p *Preview) Open(complete func(error)) {
 			continue
 		}
 		window := mygo.NewWindow(mygo.WindowOptions{
-			Title: "桌面壁纸预览", Width: bounds.Width, Height: bounds.Height,
+			Title: locale.T("桌面壁纸预览"), Width: bounds.Width, Height: bounds.Height,
 			Hidden: true, Frameless: true, DisableResize: true, DisableMove: true,
 			DisableMinimize: true, DisableMaximize: true, DisableFullScreen: true, DisableShadow: true, SkipTaskbar: true,
 			BackgroundColor: "#191d30", Content: kit.View(p.options.Wallpaper),
@@ -108,18 +109,18 @@ func (p *Preview) Open(complete func(error)) {
 		window.OnClose(func(e *mygo.CloseEvent) { e.PreventDefault(); p.exitRequested() })
 	}
 	if len(p.backgrounds) == 0 {
-		complete(errors.New("未找到可用屏幕"))
+		complete(errors.New(locale.T("未找到可用屏幕")))
 		return
 	}
 	workArea := mygo.Screen.DisplayMatching(main.Bounds()).WorkArea
 	width := min(1040, workArea.Width-40)
 	height := p.options.ControlsHeight
 	if width < 480 || workArea.Height < height+40 {
-		complete(errors.New("当前屏幕可用区域过小，无法显示桌面预览操作栏"))
+		complete(errors.New(locale.T("当前屏幕可用区域过小，无法显示桌面预览操作栏")))
 		return
 	}
 	p.controls = mygo.NewWindow(mygo.WindowOptions{
-		Title: "桌面预览", Width: width, Height: height,
+		Title: locale.T("桌面预览"), Width: width, Height: height,
 		Hidden: true, Frameless: true, Panel: true, DisableResize: true, DisableMove: true,
 		Transparent: true, DisableShadow: true, BackgroundColor: "#00000000", Content: kit.View(p.options.Controls),
 	})
@@ -205,9 +206,9 @@ type unsupportedPreviewPlatform struct{}
 
 func (unsupportedPreviewPlatform) available() bool { return false }
 func (unsupportedPreviewPlatform) prepareWindow(uintptr, mygo.Rectangle) error {
-	return errors.New("当前平台暂不支持桌面预览")
+	return errors.New(locale.T("当前平台暂不支持桌面预览"))
 }
 func (unsupportedPreviewPlatform) hideApplications(done func(error)) {
-	done(errors.New("当前平台暂不支持桌面预览"))
+	done(errors.New(locale.T("当前平台暂不支持桌面预览")))
 }
 func (unsupportedPreviewPlatform) restoreApplications(done func(error)) { done(nil) }

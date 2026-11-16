@@ -11,8 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MaLuns/wallhaven-electron/internal/ports"
 	kit "github.com/egoist/mygo/ui"
+
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
+	"github.com/MaLuns/wallhaven-electron/internal/ports"
 )
 
 const (
@@ -50,10 +52,10 @@ func NewDetailLoader(options DetailOptions) *DetailLoader {
 	previousRedirect := client.CheckRedirect
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		if len(via) >= 10 || !detailURLAllowed(req.URL) {
-			return errors.New("原图重定向地址无效")
+			return errors.New(locale.T("原图重定向地址无效"))
 		}
 		if len(via) > 0 && via[0].URL.Scheme == "https" && req.URL.Scheme != "https" {
-			return errors.New("原图重定向地址无效")
+			return errors.New(locale.T("原图重定向地址无效"))
 		}
 		if previousRedirect != nil {
 			return previousRedirect(req, via)
@@ -86,10 +88,10 @@ func detailContextError(ctx context.Context, err error) error {
 		err = ctx.Err()
 	}
 	if errors.Is(err, context.Canceled) {
-		return detailLoadError{"原图加载已取消", context.Canceled}
+		return detailLoadError{locale.T("原图加载已取消"), context.Canceled}
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
-		return detailLoadError{"原图加载超时，请重试", context.DeadlineExceeded}
+		return detailLoadError{locale.T("原图加载超时，请重试"), context.DeadlineExceeded}
 	}
 	return nil
 }
@@ -102,7 +104,7 @@ func (l *DetailLoader) Load(ctx context.Context, rawURL string, progress func(re
 	}
 	u, err := url.Parse(strings.TrimSpace(rawURL))
 	if err != nil || !detailURLAllowed(u) {
-		return nil, errors.New("原图地址无效")
+		return nil, errors.New(locale.T("原图地址无效"))
 	}
 	ctx, cancel := context.WithTimeout(ctx, detailTimeout)
 	defer cancel()
@@ -122,7 +124,7 @@ func (l *DetailLoader) Load(ctx context.Context, rawURL string, progress func(re
 	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
-		return nil, errors.New("无法创建原图请求")
+		return nil, errors.New(locale.T("无法创建原图请求"))
 	}
 	request.Header.Set("Accept", "image/*")
 	request.Header.Set("User-Agent", "MyGO-Wallhaven/0.1.0")
@@ -131,23 +133,23 @@ func (l *DetailLoader) Load(ctx context.Context, rawURL string, progress func(re
 		if canceled := detailContextError(ctx, err); canceled != nil {
 			return nil, canceled
 		}
-		return nil, errors.New("原图连接失败，请检查网络后重试")
+		return nil, errors.New(locale.T("原图连接失败，请检查网络后重试"))
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
 		switch response.StatusCode {
 		case http.StatusUnauthorized, http.StatusForbidden:
-			return nil, errors.New("原图访问被拒绝，请检查内容访问权限")
+			return nil, errors.New(locale.T("原图访问被拒绝，请检查内容访问权限"))
 		case http.StatusNotFound, http.StatusGone:
-			return nil, errors.New("原图不存在或已被移除")
+			return nil, errors.New(locale.T("原图不存在或已被移除"))
 		case http.StatusTooManyRequests:
-			return nil, errors.New("原图请求过于频繁，请稍后重试")
+			return nil, errors.New(locale.T("原图请求过于频繁，请稍后重试"))
 		default:
-			return nil, errors.New("原图服务暂时不可用，请重试")
+			return nil, errors.New(locale.T("原图服务暂时不可用，请重试"))
 		}
 	}
 	if response.ContentLength > l.maxBytes {
-		return nil, errors.New("原图文件超过大小限制")
+		return nil, errors.New(locale.T("原图文件超过大小限制"))
 	}
 	// Read one extra byte so chunked responses cannot bypass the same bound.
 	limit := l.maxBytes
@@ -164,10 +166,10 @@ func (l *DetailLoader) Load(ctx context.Context, rawURL string, progress func(re
 		if canceled := detailContextError(ctx, err); canceled != nil {
 			return nil, canceled
 		}
-		return nil, errors.New("原图读取失败，请重试")
+		return nil, errors.New(locale.T("原图读取失败，请重试"))
 	}
 	if int64(len(data)) > l.maxBytes {
-		return nil, errors.New("原图文件超过大小限制")
+		return nil, errors.New(locale.T("原图文件超过大小限制"))
 	}
 	if err := detailContextError(ctx, nil); err != nil {
 		return nil, err
@@ -181,24 +183,24 @@ func (l *DetailLoader) Load(ctx context.Context, rawURL string, progress func(re
 
 func (l *DetailLoader) decode(ctx context.Context, data []byte, progress func(int64, int64)) (*kit.Bitmap, error) {
 	if int64(len(data)) > l.maxBytes {
-		return nil, errors.New("原图文件超过大小限制")
+		return nil, errors.New(locale.T("原图文件超过大小限制"))
 	}
 	if err := detailContextError(ctx, nil); err != nil {
 		return nil, err
 	}
 	config, _, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
-		return nil, errors.New("原图格式无效或不受支持")
+		return nil, errors.New(locale.T("原图格式无效或不受支持"))
 	}
 	if config.Width <= 0 || config.Height <= 0 || config.Width > detailDimension || config.Height > detailDimension || int64(config.Width) > l.maxPixels/int64(config.Height) {
-		return nil, errors.New("原图尺寸超过预览限制")
+		return nil, errors.New(locale.T("原图尺寸超过预览限制"))
 	}
 	bitmap, err := kit.DecodeBitmap(data)
 	if canceled := detailContextError(ctx, nil); canceled != nil {
 		return nil, canceled
 	}
 	if err != nil {
-		return nil, errors.New("原图解码失败，请重试")
+		return nil, errors.New(locale.T("原图解码失败，请重试"))
 	}
 	if progress != nil {
 		progress(int64(len(data)), int64(len(data)))

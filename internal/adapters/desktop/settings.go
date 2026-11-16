@@ -5,8 +5,10 @@ import (
 	"errors"
 	"os"
 
-	"github.com/MaLuns/wallhaven-electron/internal/ports"
 	"github.com/egoist/mygo"
+
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
+	"github.com/MaLuns/wallhaven-electron/internal/ports"
 )
 
 // MyGO marshals these calls to the platform UI thread. No login item is
@@ -39,17 +41,17 @@ func (SettingsDirectories) Validate(ctx context.Context, path string) error {
 	}
 	info, err := os.Stat(path)
 	if err != nil || !info.IsDir() {
-		return errors.New("下载目录不存在或不是文件夹")
+		return errors.New(locale.T("下载目录不存在或不是文件夹"))
 	}
 	file, err := os.CreateTemp(path, ".wallhaven-write-*")
 	if err != nil {
-		return errors.New("下载目录不可写，请选择其他文件夹")
+		return errors.New(locale.T("下载目录不可写，请选择其他文件夹"))
 	}
 	name := file.Name()
 	closeErr := file.Close()
 	removeErr := os.Remove(name)
 	if closeErr != nil || removeErr != nil {
-		return errors.New("无法在下载目录中完成文件操作")
+		return errors.New(locale.T("无法在下载目录中完成文件操作"))
 	}
 	return ctx.Err()
 }

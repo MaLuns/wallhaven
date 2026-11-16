@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"github.com/MaLuns/wallhaven-electron/internal/domain"
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
 	"github.com/MaLuns/wallhaven-electron/internal/ports"
 )
 
@@ -301,10 +302,10 @@ func (c *Controller) loadSearchPage(ctx context.Context, generation uint64, quer
 
 func (c *Controller) unavailable() string {
 	if c.source == nil {
-		return "壁纸数据服务尚未配置"
+		return locale.T("壁纸数据服务尚未配置")
 	}
 	if c.dispatch == nil {
-		return "界面更新服务尚未就绪"
+		return locale.T("界面更新服务尚未就绪")
 	}
 	return ""
 }
@@ -346,10 +347,10 @@ func uniqueWallpapers(existing, incoming []domain.Wallpaper) []domain.Wallpaper 
 
 func displayError(err error) string {
 	if errors.Is(err, context.DeadlineExceeded) {
-		return "请求超时，请重试"
+		return locale.T("请求超时，请重试")
 	}
 	if errors.Is(err, context.Canceled) {
-		return "请求已取消"
+		return locale.T("请求已取消")
 	}
-	return err.Error()
+	return locale.T(err.Error())
 }

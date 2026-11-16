@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
 )
 
 // Linux support is deliberately limited to the desktop-owned settings APIs
@@ -28,7 +30,7 @@ func (w *Wallpaper) setLinuxWallpaper(ctx context.Context, path string) error {
 	case "plasma":
 		return w.setPlasma(ctx, uri)
 	default:
-		return actionError{"当前 Linux 桌面暂不支持设置壁纸（支持 GNOME、Cinnamon、MATE、XFCE、KDE Plasma）", ErrUnsupported}
+		return actionError{locale.T("当前 Linux 桌面暂不支持设置壁纸（支持 GNOME、Cinnamon、MATE、XFCE、KDE Plasma）"), ErrUnsupported}
 	}
 }
 
@@ -60,7 +62,7 @@ func detectedDesktop(getenv func(string) string) string {
 func (w *Wallpaper) command(ctx context.Context, name string, args ...string) ([]byte, error) {
 	program, err := w.lookPath(name)
 	if err != nil {
-		return nil, actionError{"设置壁纸需要系统命令 " + name, ErrUnsupported}
+		return nil, actionError{locale.T("设置壁纸需要系统命令 ") + name, ErrUnsupported}
 	}
 	output, err := w.run(ctx, program, args...)
 	if err != nil {
@@ -70,7 +72,7 @@ func (w *Wallpaper) command(ctx context.Context, name string, args ...string) ([
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return nil, err
 		}
-		return nil, errors.New(name + " 未能应用壁纸，请检查桌面会话和系统权限")
+		return nil, errors.New(name + locale.T(" 未能应用壁纸，请检查桌面会话和系统权限"))
 	}
 	return output, nil
 }
@@ -90,7 +92,7 @@ func (w *Wallpaper) setGSettings(ctx context.Context, schema, key, value string)
 		keys[field] = true
 	}
 	if !keys[key] {
-		return actionError{"当前桌面没有可用的壁纸设置项", ErrUnsupported}
+		return actionError{locale.T("当前桌面没有可用的壁纸设置项"), ErrUnsupported}
 	}
 	targets := []string{key}
 	if key == "picture-uri" && keys["picture-uri-dark"] {
@@ -111,7 +113,7 @@ func (w *Wallpaper) setGSettings(ctx context.Context, schema, key, value string)
 		}
 		mode, err := variantString(string(stored))
 		if err != nil {
-			return errors.New("无法确认桌面壁纸显示模式")
+			return errors.New(locale.T("无法确认桌面壁纸显示模式"))
 		}
 		if mode == "none" {
 			if err := w.writeGSettingsValue(ctx, schema, "picture-options", `"zoom"`); err != nil {
@@ -132,7 +134,7 @@ func (w *Wallpaper) setGSettings(ctx context.Context, schema, key, value string)
 			}
 		case "true":
 		default:
-			return errors.New("无法确认桌面背景显示开关")
+			return errors.New(locale.T("无法确认桌面背景显示开关"))
 		}
 	}
 	return nil
@@ -146,7 +148,7 @@ func (w *Wallpaper) writeGSettingsValue(ctx context.Context, schema, key, litera
 		return err
 	}
 	if strings.TrimSpace(string(writable)) != "true" {
-		return errors.New("壁纸设置已被系统策略锁定")
+		return errors.New(locale.T("壁纸设置已被系统策略锁定"))
 	}
 	if _, err := w.command(ctx, "gsettings", "set", schema, key, literal); err != nil {
 		return err
@@ -157,13 +159,13 @@ func (w *Wallpaper) writeGSettingsValue(ctx context.Context, schema, key, litera
 	}
 	if literal == "true" || literal == "false" {
 		if strings.TrimSpace(string(stored)) != literal {
-			return errors.New("桌面未保存新的壁纸显示开关，请检查系统权限")
+			return errors.New(locale.T("桌面未保存新的壁纸显示开关，请检查系统权限"))
 		}
 	} else {
 		expected, expectedErr := variantString(literal)
 		actual, err := variantString(string(stored))
 		if expectedErr != nil || err != nil || actual != expected {
-			return errors.New("桌面未保存新的壁纸设置，请检查系统权限")
+			return errors.New(locale.T("桌面未保存新的壁纸设置，请检查系统权限"))
 		}
 	}
 	return nil
@@ -176,7 +178,7 @@ func (w *Wallpaper) enableXfceImageMode(ctx context.Context, property string) er
 	}
 	mode, err := strconv.Atoi(strings.TrimSpace(string(stored)))
 	if err != nil {
-		return errors.New("无法确认 XFCE 壁纸显示模式")
+		return errors.New(locale.T("无法确认 XFCE 壁纸显示模式"))
 	}
 	if mode != 0 {
 		return nil
@@ -192,7 +194,7 @@ func (w *Wallpaper) enableXfceImageMode(ctx context.Context, property string) er
 		return err
 	}
 	if strings.TrimSpace(string(stored)) != "5" {
-		return errors.New("XFCE 未启用新的壁纸显示模式")
+		return errors.New(locale.T("XFCE 未启用新的壁纸显示模式"))
 	}
 	return nil
 }
@@ -213,7 +215,7 @@ func variantString(value string) (string, error) {
 		if character == '\\' {
 			i++
 			if i >= len(value)-1 {
-				return "", errors.New("壁纸设置响应转义无效")
+				return "", errors.New(locale.T("壁纸设置响应转义无效"))
 			}
 			if value[i] == '\'' {
 				text.WriteByte('\'')
@@ -222,7 +224,7 @@ func variantString(value string) (string, error) {
 				text.WriteByte(value[i])
 			}
 		} else if character == value[0] {
-			return "", errors.New("壁纸设置响应引号无效")
+			return "", errors.New(locale.T("壁纸设置响应引号无效"))
 		} else if character == '"' {
 			text.WriteString(`\"`)
 		} else {
@@ -263,7 +265,7 @@ func (w *Wallpaper) setXfce(ctx context.Context, path string) error {
 			return err
 		}
 		if strings.TrimSuffix(string(stored), "\n") != path {
-			return errors.New("XFCE 未保存新的壁纸设置")
+			return errors.New(locale.T("XFCE 未保存新的壁纸设置"))
 		}
 		modeProperty := strings.TrimSuffix(property, "last-image") + "image-style"
 		if properties[modeProperty] {
@@ -273,7 +275,7 @@ func (w *Wallpaper) setXfce(ctx context.Context, path string) error {
 		}
 	}
 	if len(seen) == 0 {
-		return actionError{"未找到 XFCE 当前屏幕的壁纸配置", ErrUnsupported}
+		return actionError{locale.T("未找到 XFCE 当前屏幕的壁纸配置"), ErrUnsupported}
 	}
 	return nil
 }
@@ -303,7 +305,7 @@ print("MYGO_WALLPAPER_OK:" + ds.length);`
 		return err
 	}
 	if !plasmaSuccess.MatchString(strings.TrimSpace(string(output))) {
-		return errors.New("KDE Plasma 未确认壁纸已应用")
+		return errors.New(locale.T("KDE Plasma 未确认壁纸已应用"))
 	}
 	return nil
 }

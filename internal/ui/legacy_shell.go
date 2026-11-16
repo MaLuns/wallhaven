@@ -1,8 +1,10 @@
 package ui
 
 import (
+	"fmt"
 	"github.com/MaLuns/wallhaven-electron/internal/changelog"
 	"github.com/MaLuns/wallhaven-electron/internal/domain"
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
 	kit "github.com/egoist/mygo/ui"
 )
 
@@ -17,24 +19,28 @@ func (a *App) titleBar(c *kit.Context) {
 	if c.Theme().Dark {
 		foreground = hexColor("e4e4e4")
 	}
-	kit.Row(c.Key("title-bar")).Label("标题栏").FillWidth().Height(30).Shrink(0).Background(p.Header).TextColor(foreground).DragWindow().AlignItems(kit.Center).Children(func() {
+	kit.Row(c.Key("title-bar")).Label(locale.T("标题栏")).FillWidth().Height(30).Shrink(0).Background(p.Header).TextColor(foreground).DragWindow().AlignItems(kit.Center).Children(func() {
 		kit.Row(c.Key("brand")).Width(160).Padding(0, 10).Gap(6).AlignItems(kit.Center).Children(func() {
 			kit.Image(c, legacyBitmaps["logo"]).Size(20, 20)
 			kit.Text(c, "One Wallhaven").FontSize(14).Bold()
 		})
 		kit.Box(c).Grow(1)
 		menu := legacyIconButton(c, "menu", "menu", "功能菜单", 16).Size(40, 30).OnClick(func() { a.menuOpen = !a.menuOpen })
+		menuWidth := float32(180)
+		if locale.T("下载") != "下载" {
+			menuWidth = 240
+		}
 		kit.Popover(c.Key("function-menu"), menu, &a.menuOpen, func() {
-			kit.Grid(c).Width(180).Columns(3).Padding(5).Gap(10).Children(func() {
+			kit.Grid(c).Width(menuWidth).Columns(3).Padding(5).Gap(10).Children(func() {
 				for _, item := range []struct{ title, icon, label string }{{"下载", "download", "前往下载"}, {"皮肤", "theme", "皮肤"}, {"设置", "settings", "前往设置"}, {"日志", "log", "日志"}, {"关于", "about", "关于"}, {"更新", "refresh", "更新"}} {
-					b := kit.ButtonBase(c.Key(item.title)).Label(item.label).Disabled(item.title == "更新" && a.onCheckForUpdates == nil).FillWidth().Height(60).Padding(0).Background(kit.Transparent)
+					b := kit.ButtonBase(c.Key(item.title)).Label(locale.T(item.label)).Disabled(item.title == "更新" && a.onCheckForUpdates == nil).FillWidth().Height(60).Padding(0).Background(kit.Transparent)
 					if b.Hovered() {
 						b.TextColor(p.Accent)
 					}
 					b.Children(func() {
 						kit.Column(c).Fill().Center().Gap(5).Children(func() {
 							appIcon(c, item.icon, 24)
-							kit.Text(c, item.title).FontSize(12)
+							kit.Text(c, locale.T(item.title)).FontSize(12)
 						})
 					})
 					b.OnClick(func() {
@@ -77,7 +83,7 @@ func (a *App) titleBar(c *kit.Context) {
 func (a *App) navigation(c *kit.Context) {
 	p := legacyPalette(c)
 	current := a.controller.CurrentPage().ID
-	kit.Row(c.Key("navigation")).Label("主导航").Height(navigationHeight).Shrink(0).FillWidth().Justify(kit.Center).AlignItems(kit.Center).Children(func() {
+	kit.Row(c.Key("navigation")).Label(locale.T("主导航")).Height(navigationHeight).Shrink(0).FillWidth().Justify(kit.Center).AlignItems(kit.Center).Children(func() {
 		if current == domain.Downloads || current == domain.Settings {
 			legacyIconButton(c, "back", "back", "返回收藏", 20).Absolute().Left(20).Top((navigationHeight-30)/2).Size(30, 30).OnClick(func() { a.controller.Navigate(domain.Favorites) })
 		}
@@ -86,7 +92,7 @@ func (a *App) navigation(c *kit.Context) {
 			id                  domain.PageID
 		}{{"推荐", "recommend", "前往推荐", domain.Recommend}, {"壁纸", "wallpaper", "前往壁纸", domain.WallpaperPage}, {"组件", "component", "前往组件", domain.Components}, {"我的", "my", "前往收藏", domain.Favorites}} {
 			selected := current == item.id || item.id == domain.Favorites && (current == domain.Downloads || current == domain.Settings)
-			b := kit.ButtonBase(c.Key(string(item.id))).Label(item.label).Tooltip(item.title).Size(navigationItemWidth, navigationHeight).Margin(0, 20, 0, 0).Padding(0).Background(kit.Transparent)
+			b := kit.ButtonBase(c.Key(string(item.id))).Label(locale.T(item.label)).Tooltip(locale.T(item.title)).Size(localizedNavigationWidth(item.title), navigationHeight).Margin(0, 20, 0, 0).Padding(0).Background(kit.Transparent)
 			if b.Hovered() {
 				b.TextColor(p.Accent)
 			}
@@ -94,7 +100,7 @@ func (a *App) navigation(c *kit.Context) {
 				if selected {
 					navigationBadge(c, item.badge, item.title)
 				} else {
-					kit.Text(c, item.title).FontSize(14).FontWeight(550).IgnoreInput(true)
+					kit.Text(c, locale.T(item.title)).FontSize(14).FontWeight(550).IgnoreInput(true)
 				}
 			})
 			b.OnClick(func() { a.controller.Navigate(item.id) })
@@ -111,18 +117,18 @@ func (a *App) dialog(c *kit.Context) {
 		if a.dialogTitle == "关于" {
 			width = 500
 		}
-		panel.Label(a.dialogTitle+"对话框").Absolute().Top(windowHeight*.25).Left((windowWidth-width)/2).Width(width).MaxWidthPercent(90).Padding(12, 20, 20).Background(p.Dialog).Border(2, hexColor("3da7fe")).Radius(16).Clip().Children(func() {
+		panel.Label(fmt.Sprintf(locale.T("%s对话框"), locale.T(a.dialogTitle))).Absolute().Top(windowHeight*.25).Left((windowWidth-width)/2).Width(width).MaxWidthPercent(90).Padding(12, 20, 20).Background(p.Dialog).Border(2, hexColor("3da7fe")).Radius(16).Clip().Children(func() {
 			kit.Box(c).Absolute().Left(0).Right(0).Bottom(0).Height(6).Background(hexColor("3da7fe"))
 			kit.Column(c).FillWidth().Gap(18).Children(func() {
 				kit.Row(c).FillWidth().AlignItems(kit.Center).Children(func() {
-					kit.Text(c, a.dialogTitle).FontSize(16).Grow(1)
+					kit.Text(c, locale.T(a.dialogTitle)).FontSize(16).Grow(1)
 					legacyIconButton(c, "close-dialog", "close", "关闭弹窗").OnClick(func() { a.dialogOpen = false })
 				})
 				switch a.dialogTitle {
 				case "皮肤":
 					kit.Row(c).FillWidth().Justify(kit.Center).Gap(30).Padding(20, 0).Children(func() {
 						for _, item := range []struct{ name, title string }{{"light", "经典白"}, {"dark", "炫酷黑"}} {
-							kit.ButtonBase(c.Key(item.name)).Label(item.title).Padding(0).Width(132).Background(kit.Transparent).Children(func() {
+							kit.ButtonBase(c.Key(item.name)).Label(locale.T(item.title)).Padding(0).Width(132).Background(kit.Transparent).Children(func() {
 								kit.Column(c).Gap(10).AlignItems(kit.Center).Children(func() {
 									selected := a.appearance == item.name || a.appearance == "" && c.Theme().Dark == (item.name == "dark")
 									preview := kit.Box(c).Size(136, 78).Radius(16).Border(2, kit.Transparent).Clip()
@@ -135,15 +141,15 @@ func (a *App) dialog(c *kit.Context) {
 											kit.Box(c).Absolute().Right(0).Bottom(0).Size(32, 32).Center().Background(p.Accent).TextColor(kit.RGB(255, 255, 255)).IgnoreInput(true).Children(func() { appIcon(c, "check", 18) })
 										}
 									})
-									kit.Text(c, item.title).FontSize(14)
+									kit.Text(c, locale.T(item.title)).FontSize(14)
 								})
 							}).OnClick(func() { a.appearance = item.name })
 						}
 					})
 				case "关于":
-					kit.Text(c, "《One Wallhaven》是一个由个人开发的桌面壁纸类程序。本程序图片内容来源于 wallhaven.cc，图片版权为原作者所有。").FontSize(14).LineHeight(1.8)
+					kit.Text(c, locale.T("《One Wallhaven》是一个由个人开发的桌面壁纸类程序。本程序图片内容来源于 wallhaven.cc，图片版权为原作者所有。")).FontSize(14).LineHeight(1.8)
 					if a.version != "" {
-						kit.Text(c, "当前版本："+a.version).FontSize(13).TextColor(p.Muted)
+						kit.Text(c, locale.T("当前版本：")+a.version).FontSize(13).TextColor(p.Muted)
 					}
 				case "日志":
 					kit.Scroll(c).Height(300).FillWidth().Children(func() {
@@ -151,7 +157,7 @@ func (a *App) dialog(c *kit.Context) {
 							for _, entry := range changelog.Entries() {
 								kit.Text(c, "v"+entry.Version+"  "+entry.Date).FontSize(16).Bold()
 								for _, line := range entry.Changes {
-									kit.Text(c, "· "+line).FontSize(14)
+									kit.Text(c, "· "+locale.T(line)).FontSize(14)
 								}
 							}
 						})

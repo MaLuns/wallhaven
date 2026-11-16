@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/MaLuns/wallhaven-electron/internal/domain"
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
 	"github.com/MaLuns/wallhaven-electron/internal/ports"
 )
 
@@ -45,7 +46,7 @@ func New(options Options) (*Client, error) {
 	}
 	u, err := url.Parse(base)
 	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
-		return nil, errors.New("壁纸服务地址无效")
+		return nil, errors.New(locale.T("壁纸服务地址无效"))
 	}
 	u.Path = strings.TrimRight(u.Path, "/") + "/search"
 	client := http.Client{}
@@ -57,7 +58,7 @@ func New(options Options) (*Client, error) {
 		// X-API-Key is a custom credential header; net/http does not strip it
 		// automatically on cross-origin redirects as it does Authorization.
 		if len(via) >= 10 || req.URL.Scheme != u.Scheme || req.URL.Host != u.Host {
-			return errors.New("壁纸服务重定向无效")
+			return errors.New(locale.T("壁纸服务重定向无效"))
 		}
 		if previousRedirect != nil {
 			return previousRedirect(req, via)
@@ -79,7 +80,7 @@ func (c *Client) Search(ctx context.Context, query domain.SearchQuery, page int)
 		return domain.SearchResult{}, err
 	}
 	if page < 1 {
-		return domain.SearchResult{}, errors.New("页码必须大于零")
+		return domain.SearchResult{}, errors.New(locale.T("页码必须大于零"))
 	}
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
@@ -87,7 +88,7 @@ func (c *Client) Search(ctx context.Context, query domain.SearchQuery, page int)
 	u.RawQuery = parameters(query, page).Encode()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
-		return domain.SearchResult{}, errors.New("无法创建壁纸请求")
+		return domain.SearchResult{}, errors.New(locale.T("无法创建壁纸请求"))
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "MyGO-Wallhaven/0.1.0")
@@ -99,7 +100,7 @@ func (c *Client) Search(ctx context.Context, query domain.SearchQuery, page int)
 		if ctx.Err() != nil {
 			return domain.SearchResult{}, ctx.Err()
 		}
-		return domain.SearchResult{}, errors.New("壁纸服务连接失败，请检查网络后重试")
+		return domain.SearchResult{}, errors.New(locale.T("壁纸服务连接失败，请检查网络后重试"))
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
@@ -110,25 +111,25 @@ func (c *Client) Search(ctx context.Context, query domain.SearchQuery, page int)
 		if ctx.Err() != nil {
 			return domain.SearchResult{}, ctx.Err()
 		}
-		return domain.SearchResult{}, errors.New("壁纸响应读取失败，请重试")
+		return domain.SearchResult{}, errors.New(locale.T("壁纸响应读取失败，请重试"))
 	}
 	if len(body) > maxResponseBytes {
-		return domain.SearchResult{}, errors.New("壁纸服务响应超过大小限制")
+		return domain.SearchResult{}, errors.New(locale.T("壁纸服务响应超过大小限制"))
 	}
 	var payload searchResponse
 	if err := json.Unmarshal(body, &payload); err != nil || payload.Meta == nil {
-		return domain.SearchResult{}, errors.New("壁纸服务返回了无效数据")
+		return domain.SearchResult{}, errors.New(locale.T("壁纸服务返回了无效数据"))
 	}
 	meta := payload.Meta
 	emptyFirstPage := page == 1 && len(payload.Data) == 0 && meta.Total == 0 && meta.LastPage == 0
 	if meta.CurrentPage != page || meta.LastPage < 0 || meta.Total < 0 || (!emptyFirstPage && (meta.LastPage < 1 || meta.CurrentPage > meta.LastPage)) {
-		return domain.SearchResult{}, errors.New("壁纸服务分页信息无效")
+		return domain.SearchResult{}, errors.New(locale.T("壁纸服务分页信息无效"))
 	}
 	result := domain.SearchResult{CurrentPage: meta.CurrentPage, LastPage: meta.LastPage, Total: meta.Total, Seed: meta.Seed}
 	result.Wallpapers = make([]domain.Wallpaper, 0, len(payload.Data))
 	for _, image := range payload.Data {
 		if image.ID == "" {
-			return domain.SearchResult{}, errors.New("壁纸服务返回了无效图片信息")
+			return domain.SearchResult{}, errors.New(locale.T("壁纸服务返回了无效图片信息"))
 		}
 		thumbnail := image.Thumbs.Small
 		if thumbnail == "" {
@@ -172,13 +173,13 @@ func parameters(query domain.SearchQuery, page int) url.Values {
 func statusError(status int) error {
 	switch status {
 	case http.StatusUnauthorized:
-		return errors.New("需要有效的 Wallhaven API Key，请检查配置（HTTP 401）")
+		return errors.New(locale.T("需要有效的 Wallhaven API Key，请检查配置（HTTP 401）"))
 	case http.StatusForbidden:
-		return errors.New("壁纸服务拒绝访问，请稍后重试（HTTP 403）")
+		return errors.New(locale.T("壁纸服务拒绝访问，请稍后重试（HTTP 403）"))
 	case http.StatusTooManyRequests:
-		return errors.New("请求过于频繁，请稍后重试（HTTP 429）")
+		return errors.New(locale.T("请求过于频繁，请稍后重试（HTTP 429）"))
 	default:
-		return fmt.Errorf("壁纸服务请求失败（HTTP %d），请重试", status)
+		return fmt.Errorf(locale.T("壁纸服务请求失败（HTTP %d），请重试"), status)
 	}
 }
 

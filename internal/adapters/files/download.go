@@ -19,9 +19,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MaLuns/wallhaven-electron/internal/domain"
-	"github.com/MaLuns/wallhaven-electron/internal/ports"
 	_ "golang.org/x/image/webp"
+
+	"github.com/MaLuns/wallhaven-electron/internal/domain"
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
+	"github.com/MaLuns/wallhaven-electron/internal/ports"
 )
 
 const (
@@ -58,7 +60,7 @@ func New(options Options) *Downloader {
 	previousRedirect := client.CheckRedirect
 	client.CheckRedirect = func(request *http.Request, via []*http.Request) error {
 		if len(via) >= 10 || !allowedURL(request.URL) || len(via) > 0 && via[0].URL.Scheme == "https" && request.URL.Scheme != "https" {
-			return errors.New("原图重定向地址无效")
+			return errors.New(locale.T("原图重定向地址无效"))
 		}
 		if previousRedirect != nil {
 			return previousRedirect(request, via)
@@ -94,10 +96,10 @@ func contextError(ctx context.Context, err error) error {
 		err = ctx.Err()
 	}
 	if errors.Is(err, context.Canceled) {
-		return downloadError{"原图下载已取消", context.Canceled}
+		return downloadError{locale.T("原图下载已取消"), context.Canceled}
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
-		return downloadError{"原图下载超时，请重试", context.DeadlineExceeded}
+		return downloadError{locale.T("原图下载超时，请重试"), context.DeadlineExceeded}
 	}
 	return nil
 }
@@ -110,18 +112,18 @@ func (d *Downloader) Download(ctx context.Context, wallpaper domain.Wallpaper, d
 		ctx = context.Background()
 	}
 	if !wallpaperID.MatchString(wallpaper.ID) {
-		return "", errors.New("壁纸编号无效")
+		return "", errors.New(locale.T("壁纸编号无效"))
 	}
 	address, err := url.Parse(strings.TrimSpace(wallpaper.Path))
 	if err != nil || !allowedURL(address) {
-		return "", errors.New("原图地址无效")
+		return "", errors.New(locale.T("原图地址无效"))
 	}
 	if strings.TrimSpace(directory) == "" {
-		return "", errors.New("请选择下载目录")
+		return "", errors.New(locale.T("请选择下载目录"))
 	}
 	directory, err = filepath.Abs(directory)
 	if err != nil {
-		return "", errors.New("下载目录无效")
+		return "", errors.New(locale.T("下载目录无效"))
 	}
 	ctx, cancel := context.WithTimeout(ctx, d.timeout)
 	defer cancel()
@@ -135,7 +137,7 @@ func (d *Downloader) Download(ctx context.Context, wallpaper domain.Wallpaper, d
 	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, address.String(), nil)
 	if err != nil {
-		return "", errors.New("无法创建原图下载请求")
+		return "", errors.New(locale.T("无法创建原图下载请求"))
 	}
 	request.Header.Set("Accept", "image/*")
 	request.Header.Set("User-Agent", "MyGO-Wallhaven/0.1.0")
@@ -144,21 +146,21 @@ func (d *Downloader) Download(ctx context.Context, wallpaper domain.Wallpaper, d
 		if canceled := contextError(ctx, err); canceled != nil {
 			return "", canceled
 		}
-		return "", errors.New("原图连接失败，请检查网络后重试")
+		return "", errors.New(locale.T("原图连接失败，请检查网络后重试"))
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("原图下载失败（HTTP %d）", response.StatusCode)
+		return "", fmt.Errorf(locale.T("原图下载失败（HTTP %d）"), response.StatusCode)
 	}
 	if response.ContentLength > d.maxBytes {
-		return "", errors.New("原图文件超过大小限制")
+		return "", errors.New(locale.T("原图文件超过大小限制"))
 	}
 	if err := os.MkdirAll(directory, 0700); err != nil {
-		return "", errors.New("无法创建下载目录，请检查写入权限")
+		return "", errors.New(locale.T("无法创建下载目录，请检查写入权限"))
 	}
 	temporary, err := os.CreateTemp(directory, ".wallhaven-"+wallpaper.ID+"-*.part")
 	if err != nil {
-		return "", errors.New("无法写入下载目录，请检查写入权限")
+		return "", errors.New(locale.T("无法写入下载目录，请检查写入权限"))
 	}
 	defer os.Remove(temporary.Name())
 	defer temporary.Close()
@@ -170,10 +172,10 @@ func (d *Downloader) Download(ctx context.Context, wallpaper domain.Wallpaper, d
 		return "", err
 	}
 	if err := temporary.Sync(); err != nil {
-		return "", errors.New("原图保存失败，请检查磁盘空间")
+		return "", errors.New(locale.T("原图保存失败，请检查磁盘空间"))
 	}
 	if err := temporary.Close(); err != nil {
-		return "", errors.New("原图保存失败，请检查磁盘空间")
+		return "", errors.New(locale.T("原图保存失败，请检查磁盘空间"))
 	}
 	if err := contextError(ctx, nil); err != nil {
 		return "", err
@@ -194,7 +196,7 @@ func publishOriginal(ctx context.Context, temporary, directory, id, extension st
 		if err := os.Link(temporary, destination); err == nil {
 			return destination, nil
 		} else if !errors.Is(err, os.ErrExist) {
-			return "", errors.New("无法保存原图，请检查目录权限及文件系统支持")
+			return "", errors.New(locale.T("无法保存原图，请检查目录权限及文件系统支持"))
 		}
 		if err := contextError(ctx, nil); err != nil {
 			return "", err
@@ -204,14 +206,14 @@ func publishOriginal(ctx context.Context, temporary, directory, id, extension st
 
 func (d *Downloader) saveCached(ctx context.Context, wallpaper domain.Wallpaper, directory string, data []byte, progress func(int64, int64)) (string, error) {
 	if int64(len(data)) > d.maxBytes {
-		return "", errors.New("原图文件超过大小限制")
+		return "", errors.New(locale.T("原图文件超过大小限制"))
 	}
 	if err := os.MkdirAll(directory, 0700); err != nil {
-		return "", errors.New("无法创建下载目录，请检查写入权限")
+		return "", errors.New(locale.T("无法创建下载目录，请检查写入权限"))
 	}
 	file, err := os.CreateTemp(directory, ".wallhaven-"+wallpaper.ID+"-*.part")
 	if err != nil {
-		return "", errors.New("无法写入下载目录，请检查写入权限")
+		return "", errors.New(locale.T("无法写入下载目录，请检查写入权限"))
 	}
 	defer os.Remove(file.Name())
 	defer file.Close()
@@ -224,10 +226,10 @@ func (d *Downloader) saveCached(ctx context.Context, wallpaper domain.Wallpaper,
 		return "", err
 	}
 	if err := file.Sync(); err != nil {
-		return "", errors.New("原图保存失败，请检查磁盘空间")
+		return "", errors.New(locale.T("原图保存失败，请检查磁盘空间"))
 	}
 	if err := file.Close(); err != nil {
-		return "", errors.New("原图保存失败，请检查磁盘空间")
+		return "", errors.New(locale.T("原图保存失败，请检查磁盘空间"))
 	}
 	return publishOriginal(ctx, file.Name(), directory, wallpaper.ID, extension)
 }
@@ -249,10 +251,10 @@ func (d *Downloader) transfer(ctx context.Context, response *http.Response, dest
 		count, readError := response.Body.Read(buffer)
 		if count > 0 {
 			if int64(count) > d.maxBytes-received {
-				return errors.New("原图文件超过大小限制")
+				return errors.New(locale.T("原图文件超过大小限制"))
 			}
 			if _, err := destination.Write(buffer[:count]); err != nil {
-				return errors.New("原图保存失败，请检查磁盘空间")
+				return errors.New(locale.T("原图保存失败，请检查磁盘空间"))
 			}
 			received += int64(count)
 			notify(received, total)
@@ -264,7 +266,7 @@ func (d *Downloader) transfer(ctx context.Context, response *http.Response, dest
 			if canceled := contextError(ctx, readError); canceled != nil {
 				return canceled
 			}
-			return errors.New("原图读取失败，请重试")
+			return errors.New(locale.T("原图读取失败，请重试"))
 		}
 	}
 	if err := contextError(ctx, nil); err != nil {
@@ -288,32 +290,32 @@ func (r cancelReader) Read(data []byte) (int, error) {
 
 func (d *Downloader) validate(ctx context.Context, file *os.File) (string, error) {
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		return "", errors.New("无法校验原图文件")
+		return "", errors.New(locale.T("无法校验原图文件"))
 	}
 	config, format, err := image.DecodeConfig(cancelReader{ctx, file})
 	if canceled := contextError(ctx, err); canceled != nil {
 		return "", canceled
 	}
 	if err != nil {
-		return "", errors.New("原图格式无效或不受支持")
+		return "", errors.New(locale.T("原图格式无效或不受支持"))
 	}
 	if config.Width <= 0 || config.Height <= 0 || config.Width > maxDimension || config.Height > maxDimension || int64(config.Width) > d.maxPixels/int64(config.Height) {
-		return "", errors.New("原图尺寸超过下载限制")
+		return "", errors.New(locale.T("原图尺寸超过下载限制"))
 	}
 	extensions := map[string]string{"jpeg": ".jpg", "png": ".png", "webp": ".webp", "gif": ".gif"}
 	extension := extensions[format]
 	if extension == "" {
-		return "", errors.New("原图格式无效或不受支持")
+		return "", errors.New(locale.T("原图格式无效或不受支持"))
 	}
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		return "", errors.New("无法校验原图文件")
+		return "", errors.New(locale.T("无法校验原图文件"))
 	}
 	_, _, err = image.Decode(cancelReader{ctx, file})
 	if canceled := contextError(ctx, err); canceled != nil {
 		return "", canceled
 	}
 	if err != nil {
-		return "", errors.New("原图数据损坏，请重试")
+		return "", errors.New(locale.T("原图数据损坏，请重试"))
 	}
 	return extension, nil
 }

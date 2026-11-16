@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/MaLuns/wallhaven-electron/internal/domain"
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
 	"github.com/MaLuns/wallhaven-electron/internal/ports"
 )
 
@@ -21,7 +22,7 @@ var wallpaperID = regexp.MustCompile(`^[a-zA-Z0-9]{6}$`)
 // or remote bodies to the UI.
 func (c *Client) Detail(ctx context.Context, id string) (domain.WallpaperDetail, error) {
 	if !wallpaperID.MatchString(id) {
-		return domain.WallpaperDetail{}, errors.New("壁纸编号无效")
+		return domain.WallpaperDetail{}, errors.New(locale.T("壁纸编号无效"))
 	}
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
@@ -30,7 +31,7 @@ func (c *Client) Detail(ctx context.Context, id string) (domain.WallpaperDetail,
 	u.RawPath, u.RawQuery = "", ""
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
-		return domain.WallpaperDetail{}, errors.New("无法创建壁纸详情请求")
+		return domain.WallpaperDetail{}, errors.New(locale.T("无法创建壁纸详情请求"))
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "MyGO-Wallhaven/0.1.0")
@@ -42,11 +43,11 @@ func (c *Client) Detail(ctx context.Context, id string) (domain.WallpaperDetail,
 		if ctx.Err() != nil {
 			return domain.WallpaperDetail{}, ctx.Err()
 		}
-		return domain.WallpaperDetail{}, errors.New("壁纸详情连接失败，请检查网络后重试")
+		return domain.WallpaperDetail{}, errors.New(locale.T("壁纸详情连接失败，请检查网络后重试"))
 	}
 	defer response.Body.Close()
 	if response.StatusCode == http.StatusNotFound {
-		return domain.WallpaperDetail{}, errors.New("壁纸已删除或不存在（HTTP 404）")
+		return domain.WallpaperDetail{}, errors.New(locale.T("壁纸已删除或不存在（HTTP 404）"))
 	}
 	if response.StatusCode != http.StatusOK {
 		return domain.WallpaperDetail{}, statusError(response.StatusCode)
@@ -56,20 +57,20 @@ func (c *Client) Detail(ctx context.Context, id string) (domain.WallpaperDetail,
 		if ctx.Err() != nil {
 			return domain.WallpaperDetail{}, ctx.Err()
 		}
-		return domain.WallpaperDetail{}, errors.New("壁纸详情读取失败，请重试")
+		return domain.WallpaperDetail{}, errors.New(locale.T("壁纸详情读取失败，请重试"))
 	}
 	if len(body) > maxResponseBytes {
-		return domain.WallpaperDetail{}, errors.New("壁纸详情响应超过大小限制")
+		return domain.WallpaperDetail{}, errors.New(locale.T("壁纸详情响应超过大小限制"))
 	}
 	var payload struct {
 		Data *detailResponse `json:"data"`
 	}
 	if err := json.Unmarshal(body, &payload); err != nil || payload.Data == nil {
-		return domain.WallpaperDetail{}, errors.New("壁纸服务返回了无效详情数据")
+		return domain.WallpaperDetail{}, errors.New(locale.T("壁纸服务返回了无效详情数据"))
 	}
 	image := payload.Data
 	if image.ID != id || image.Width <= 0 || image.Height <= 0 || image.FileSize < 0 || image.Views < 0 || image.Favorites < 0 {
-		return domain.WallpaperDetail{}, errors.New("壁纸服务返回了无效详情数据")
+		return domain.WallpaperDetail{}, errors.New(locale.T("壁纸服务返回了无效详情数据"))
 	}
 	thumbnail := image.Thumbs.Small
 	if thumbnail == "" {

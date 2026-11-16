@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/MaLuns/wallhaven-electron/internal/domain"
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
 	"github.com/MaLuns/wallhaven-electron/internal/ports"
 )
 
@@ -29,18 +30,18 @@ func (d *Downloader) DownloadResumable(ctx context.Context, wallpaper domain.Wal
 		ctx = context.Background()
 	}
 	if !wallpaperID.MatchString(wallpaper.ID) {
-		return "", errors.New("壁纸编号无效")
+		return "", errors.New(locale.T("壁纸编号无效"))
 	}
 	address, err := url.Parse(strings.TrimSpace(wallpaper.Path))
 	if err != nil || !allowedURL(address) || len(address.String()) > 8192 {
-		return "", errors.New("原图地址无效")
+		return "", errors.New(locale.T("原图地址无效"))
 	}
 	if strings.TrimSpace(directory) == "" || strings.ContainsRune(directory, 0) {
-		return "", errors.New("请选择有效下载目录")
+		return "", errors.New(locale.T("请选择有效下载目录"))
 	}
 	directory, err = filepath.Abs(directory)
 	if err != nil || len(directory) > 4096 {
-		return "", errors.New("下载目录无效")
+		return "", errors.New(locale.T("下载目录无效"))
 	}
 	statePath, err := d.checkpointPath(key)
 	if err != nil {
@@ -59,7 +60,7 @@ func (d *Downloader) DownloadResumable(ctx context.Context, wallpaper domain.Wal
 	}
 	if state != nil && (state.URL != address.String() || state.Directory != directory || state.ID != wallpaper.ID) {
 		if !state.Complete {
-			return "", errors.New("未完成的下载与当前原图或目录不一致，请先取消旧任务")
+			return "", errors.New(locale.T("未完成的下载与当前原图或目录不一致，请先取消旧任务"))
 		}
 		// A fresh submission may use a new chosen directory. Only its old
 		// private partial is cleaned; the published original is retained.
@@ -90,7 +91,7 @@ func (d *Downloader) DownloadResumable(ctx context.Context, wallpaper domain.Wal
 	if state == nil {
 		state = &checkpoint{Version: 1, Key: key, ID: wallpaper.ID, URL: address.String(), Directory: directory}
 		if _, err := os.Lstat(partialPath(*state)); err == nil || !errors.Is(err, os.ErrNotExist) {
-			return "", errors.New("发现未关联的下载临时文件，未覆盖现有文件")
+			return "", errors.New(locale.T("发现未关联的下载临时文件，未覆盖现有文件"))
 		}
 		if err := writeCheckpoint(ctx, statePath, *state); err != nil {
 			return "", err
@@ -121,7 +122,7 @@ func (d *Downloader) DownloadResumable(ctx context.Context, wallpaper domain.Wal
 	if d.originals != nil {
 		if data, found := d.originals.Get(state.URL); found {
 			if int64(len(data)) > d.maxBytes {
-				return "", errors.New("原图文件超过大小限制")
+				return "", errors.New(locale.T("原图文件超过大小限制"))
 			}
 			if err := d.restartPartial(ctx, file, statePath, state); err != nil {
 				return "", err
@@ -142,7 +143,7 @@ func (d *Downloader) DownloadResumable(ctx context.Context, wallpaper domain.Wal
 	for attempt := 0; attempt < 2; attempt++ {
 		info, err := file.Stat()
 		if err != nil {
-			return "", errors.New("无法读取下载断点长度")
+			return "", errors.New(locale.T("无法读取下载断点长度"))
 		}
 		offset := info.Size()
 		if offset > 0 && state.ETag == "" && state.LastModified == "" {
@@ -169,18 +170,18 @@ func (d *Downloader) DownloadResumable(ctx context.Context, wallpaper domain.Wal
 			if canceled := contextError(ctx, err); canceled != nil {
 				return "", canceled
 			}
-			return "", errors.New("原图连接失败，已保留断点供继续下载")
+			return "", errors.New(locale.T("原图连接失败，已保留断点供继续下载"))
 		}
 		if encoding := response.Header.Get("Content-Encoding"); encoding != "" && encoding != "identity" {
 			response.Body.Close()
-			return "", errors.New("服务器返回了不支持的原图内容编码")
+			return "", errors.New(locale.T("服务器返回了不支持的原图内容编码"))
 		}
 		var expectedEnd int64 = -1
 		switch response.StatusCode {
 		case http.StatusOK:
 			if response.ContentLength > d.maxBytes {
 				response.Body.Close()
-				return "", errors.New("原图文件超过大小限制")
+				return "", errors.New(locale.T("原图文件超过大小限制"))
 			}
 			if err := d.restartPartial(ctx, file, statePath, state); err != nil {
 				response.Body.Close()
@@ -196,7 +197,7 @@ func (d *Downloader) DownloadResumable(ctx context.Context, wallpaper domain.Wal
 			start, end, total, valid := parseContentRange(response.Header.Get("Content-Range"))
 			if !valid || start != offset || total > d.maxBytes || response.ContentLength >= 0 && response.ContentLength != end-start+1 {
 				response.Body.Close()
-				return "", errors.New("服务器返回的下载范围无效，未拼接原图")
+				return "", errors.New(locale.T("服务器返回的下载范围无效，未拼接原图"))
 			}
 			if offset > 0 && (validatorChanged(*state, response.Header) || state.Total > 0 && state.Total != total) {
 				response.Body.Close()
@@ -226,7 +227,7 @@ func (d *Downloader) DownloadResumable(ctx context.Context, wallpaper domain.Wal
 			continue
 		default:
 			response.Body.Close()
-			return "", fmt.Errorf("原图下载失败（HTTP %d），已保留断点", response.StatusCode)
+			return "", fmt.Errorf(locale.T("原图下载失败（HTTP %d），已保留断点"), response.StatusCode)
 		}
 		if err := writeCheckpoint(ctx, statePath, *state); err != nil {
 			response.Body.Close()
@@ -239,27 +240,27 @@ func (d *Downloader) DownloadResumable(ctx context.Context, wallpaper domain.Wal
 		}
 		return d.finishResumable(ctx, file, statePath, state, progress)
 	}
-	return "", errors.New("原图来源已变化，请重试下载")
+	return "", errors.New(locale.T("原图来源已变化，请重试下载"))
 }
 
 func (d *Downloader) openPartial(state checkpoint) (*os.File, error) {
 	if err := os.MkdirAll(state.Directory, 0700); err != nil {
-		return nil, errors.New("无法创建下载目录，请检查写入权限")
+		return nil, errors.New(locale.T("无法创建下载目录，请检查写入权限"))
 	}
 	path := partialPath(state)
 	info, err := os.Lstat(path)
 	if err != nil && !errors.Is(err, os.ErrNotExist) || err == nil && !info.Mode().IsRegular() {
-		return nil, errors.New("下载临时文件类型无效，未覆盖任何文件")
+		return nil, errors.New(locale.T("下载临时文件类型无效，未覆盖任何文件"))
 	}
 	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
-		return nil, errors.New("无法打开下载临时文件")
+		return nil, errors.New(locale.T("无法打开下载临时文件"))
 	}
 	opened, statErr := file.Stat()
 	current, pathErr := os.Lstat(path)
 	if statErr != nil || pathErr != nil || !opened.Mode().IsRegular() || !os.SameFile(opened, current) || info != nil && !os.SameFile(info, opened) || opened.Size() > d.maxBytes {
 		file.Close()
-		return nil, errors.New("下载临时文件已变更或超过大小限制")
+		return nil, errors.New(locale.T("下载临时文件已变更或超过大小限制"))
 	}
 	return file, nil
 }
@@ -269,14 +270,14 @@ func (d *Downloader) restartPartial(ctx context.Context, file *os.File, statePat
 		return err
 	}
 	if err := file.Truncate(0); err != nil {
-		return errors.New("无法重置下载临时文件")
+		return errors.New(locale.T("无法重置下载临时文件"))
 	}
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		return errors.New("无法重置下载临时文件")
+		return errors.New(locale.T("无法重置下载临时文件"))
 	}
 	// Truncation must be durable before the sidecar names the new validator.
 	if err := file.Sync(); err != nil {
-		return errors.New("无法同步下载临时文件")
+		return errors.New(locale.T("无法同步下载临时文件"))
 	}
 	state.ETag, state.LastModified, state.Total = "", "", 0
 	clearReceipt(state)
@@ -295,7 +296,7 @@ func notifyProgress(progress func(int64, int64), received, total int64) {
 
 func (d *Downloader) copyResumable(ctx context.Context, response *http.Response, file *os.File, offset, total, end int64, progress func(int64, int64)) error {
 	if _, err := file.Seek(offset, io.SeekStart); err != nil {
-		return errors.New("无法定位下载断点")
+		return errors.New(locale.T("无法定位下载断点"))
 	}
 	notifyProgress(progress, offset, total)
 	buffer := make([]byte, 32<<10)
@@ -307,11 +308,11 @@ func (d *Downloader) copyResumable(ctx context.Context, response *http.Response,
 		n, readErr := response.Body.Read(buffer)
 		if n > 0 {
 			if int64(n) > d.maxBytes-received || end >= 0 && int64(n) > end+1-received {
-				return errors.New("原图长度超过声明范围或大小限制")
+				return errors.New(locale.T("原图长度超过声明范围或大小限制"))
 			}
 			written, err := file.Write(buffer[:n])
 			if err != nil || written != n {
-				return errors.New("原图保存失败，已保留可用断点")
+				return errors.New(locale.T("原图保存失败，已保留可用断点"))
 			}
 			received += int64(n)
 			notifyProgress(progress, received, total)
@@ -321,7 +322,7 @@ func (d *Downloader) copyResumable(ctx context.Context, response *http.Response,
 				if canceled := contextError(ctx, readErr); canceled != nil {
 					return canceled
 				}
-				return errors.New("原图读取中断，已保留断点供继续下载")
+				return errors.New(locale.T("原图读取中断，已保留断点供继续下载"))
 			}
 			break
 		}
@@ -330,7 +331,7 @@ func (d *Downloader) copyResumable(ctx context.Context, response *http.Response,
 		return err
 	}
 	if end >= 0 && received != end+1 || total > 0 && received != total {
-		return errors.New("原图尚未下载完整，已保留断点供继续下载")
+		return errors.New(locale.T("原图尚未下载完整，已保留断点供继续下载"))
 	}
 	return nil
 }
@@ -346,11 +347,11 @@ func (d *Downloader) finishResumable(ctx context.Context, file *os.File, statePa
 		return "", err
 	}
 	if err := file.Sync(); err != nil {
-		return "", errors.New("原图保存失败，请检查磁盘空间")
+		return "", errors.New(locale.T("原图保存失败，请检查磁盘空间"))
 	}
 	info, err := file.Stat()
 	if err != nil {
-		return "", errors.New("无法校验已下载原图")
+		return "", errors.New(locale.T("无法校验已下载原图"))
 	}
 	digest, err := fileDigest(ctx, file)
 	if err != nil {
@@ -370,7 +371,7 @@ func (d *Downloader) finishResumable(ctx context.Context, file *os.File, statePa
 		if _, err := os.Lstat(destination); err == nil {
 			continue
 		} else if !errors.Is(err, os.ErrNotExist) {
-			return "", errors.New("无法读取原图保存目录")
+			return "", errors.New(locale.T("无法读取原图保存目录"))
 		}
 		// Persist the intended link first. If the app stops after Link, the
 		// next run verifies this candidate and upgrades it to a receipt.
@@ -381,14 +382,14 @@ func (d *Downloader) finishResumable(ctx context.Context, file *os.File, statePa
 			if errors.Is(err, os.ErrExist) {
 				continue
 			}
-			return "", errors.New("无法保存原图，请检查目录权限及文件系统支持")
+			return "", errors.New(locale.T("无法保存原图，请检查目录权限及文件系统支持"))
 		}
 		state.Complete = true
 		if err := writeCheckpoint(ctx, statePath, *state); err != nil {
 			return "", err
 		}
 		if err := file.Close(); err != nil {
-			return "", errors.New("无法关闭已保存原图")
+			return "", errors.New(locale.T("无法关闭已保存原图"))
 		}
 		if err := removePartial(*state); err != nil {
 			return "", err
@@ -406,16 +407,16 @@ func (d *Downloader) validReceipt(ctx context.Context, state checkpoint) (string
 		return "", false, nil
 	}
 	if err != nil {
-		return "", false, errors.New("无法读取已保存原图")
+		return "", false, errors.New(locale.T("无法读取已保存原图"))
 	}
 	file, err := os.Open(path)
 	if err != nil {
-		return "", false, errors.New("无法读取已保存原图")
+		return "", false, errors.New(locale.T("无法读取已保存原图"))
 	}
 	defer file.Close()
 	opened, err := file.Stat()
 	if err != nil || !os.SameFile(info, opened) {
-		return "", false, errors.New("已保存原图发生变更")
+		return "", false, errors.New(locale.T("已保存原图发生变更"))
 	}
 	digest, err := fileDigest(ctx, file)
 	if err != nil {
@@ -435,14 +436,14 @@ func (d *Downloader) validReceipt(ctx context.Context, state checkpoint) (string
 
 func fileDigest(ctx context.Context, file *os.File) (string, error) {
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		return "", errors.New("无法校验原图内容")
+		return "", errors.New(locale.T("无法校验原图内容"))
 	}
 	digest := sha256.New()
 	if _, err := io.Copy(digest, cancelReader{ctx, file}); err != nil {
 		if canceled := contextError(ctx, err); canceled != nil {
 			return "", canceled
 		}
-		return "", errors.New("无法校验原图内容")
+		return "", errors.New(locale.T("无法校验原图内容"))
 	}
 	return hex.EncodeToString(digest.Sum(nil)), nil
 }
@@ -488,7 +489,7 @@ func (d *Downloader) Discard(ctx context.Context, key string) error {
 		return err
 	}
 	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return errors.New("无法清理下载断点")
+		return errors.New(locale.T("无法清理下载断点"))
 	}
 	return nil
 }

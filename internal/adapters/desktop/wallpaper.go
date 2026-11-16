@@ -11,10 +11,11 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
 	"github.com/MaLuns/wallhaven-electron/internal/ports"
 )
 
-var ErrUnsupported = errors.New("当前平台暂不支持设置桌面壁纸")
+var ErrUnsupported = errors.New(locale.T("当前平台暂不支持设置桌面壁纸"))
 
 type Runner func(context.Context, string, ...string) ([]byte, error)
 
@@ -102,21 +103,21 @@ func (w *Wallpaper) Set(ctx context.Context, path string) error {
 		return desktopContextError(err)
 	}
 	if path == "" || !utf8.ValidString(path) {
-		return errors.New("请选择已下载的壁纸文件")
+		return errors.New(locale.T("请选择已下载的壁纸文件"))
 	}
 	absolute, err := filepath.Abs(path)
 	if err != nil {
-		return errors.New("壁纸文件路径无效")
+		return errors.New(locale.T("壁纸文件路径无效"))
 	}
 	info, err := os.Lstat(absolute)
 	if err != nil || !info.Mode().IsRegular() || info.Size() == 0 {
-		return errors.New("壁纸文件不存在或无法读取")
+		return errors.New(locale.T("壁纸文件不存在或无法读取"))
 	}
 	switch w.platform {
 	case "darwin":
 		_, err = w.run(ctx, "/usr/bin/osascript", "-l", "JavaScript", "-e", wallpaperScript, absolute)
 		if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
-			err = errors.New("系统未能设置桌面壁纸，请重试")
+			err = errors.New(locale.T("系统未能设置桌面壁纸，请重试"))
 		}
 	case "windows":
 		err = w.windows(ctx, absolute)
@@ -145,7 +146,7 @@ func (e actionError) Unwrap() error { return e.cause }
 
 func desktopContextError(err error) error {
 	if errors.Is(err, context.DeadlineExceeded) {
-		return actionError{"设置桌面壁纸超时，请重试", context.DeadlineExceeded}
+		return actionError{locale.T("设置桌面壁纸超时，请重试"), context.DeadlineExceeded}
 	}
-	return actionError{"设置桌面壁纸已取消", context.Canceled}
+	return actionError{locale.T("设置桌面壁纸已取消"), context.Canceled}
 }

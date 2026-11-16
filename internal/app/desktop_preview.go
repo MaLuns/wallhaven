@@ -3,6 +3,7 @@ package app
 import (
 	"errors"
 
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
 	"github.com/MaLuns/wallhaven-electron/internal/ports"
 )
 
@@ -52,7 +53,7 @@ func (p *DesktopPreview) Enter() {
 		return
 	}
 	if !p.Available() {
-		p.state.Error = "当前平台暂不支持桌面预览"
+		p.state.Error = locale.T("当前平台暂不支持桌面预览")
 		p.changed()
 		return
 	}

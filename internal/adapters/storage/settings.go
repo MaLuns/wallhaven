@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/MaLuns/wallhaven-electron/internal/domain"
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
 	"github.com/MaLuns/wallhaven-electron/internal/ports"
 )
 
@@ -45,14 +46,14 @@ func (s *Settings) load(ctx context.Context) (domain.Preferences, error) {
 		return domain.Preferences{}, err
 	}
 	if s.path == "" {
-		return domain.Preferences{}, errors.New("设置文件路径为空")
+		return domain.Preferences{}, errors.New(locale.T("设置文件路径为空"))
 	}
 	file, err := os.Open(s.path)
 	if errors.Is(err, os.ErrNotExist) {
 		return s.defaults, s.defaults.Validate()
 	}
 	if err != nil {
-		return domain.Preferences{}, fmt.Errorf("读取设置文件失败：%w", err)
+		return domain.Preferences{}, fmt.Errorf(locale.T("读取设置文件失败：%w"), err)
 	}
 	defer file.Close()
 	info, err := file.Stat()
@@ -60,29 +61,29 @@ func (s *Settings) load(ctx context.Context) (domain.Preferences, error) {
 		return domain.Preferences{}, err
 	}
 	if !info.Mode().IsRegular() || info.Size() > maxSettingsSize {
-		return domain.Preferences{}, errors.New("设置文件类型或大小无效")
+		return domain.Preferences{}, errors.New(locale.T("设置文件类型或大小无效"))
 	}
 	data, err := io.ReadAll(io.LimitReader(contextReader{ctx, file}, maxSettingsSize+1))
 	if err != nil {
 		return domain.Preferences{}, err
 	}
 	if len(data) > maxSettingsSize {
-		return domain.Preferences{}, errors.New("设置文件超过大小限制")
+		return domain.Preferences{}, errors.New(locale.T("设置文件超过大小限制"))
 	}
 	var record settingsFile
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&record); err != nil {
-		return domain.Preferences{}, fmt.Errorf("设置文件损坏：%w", err)
+		return domain.Preferences{}, fmt.Errorf(locale.T("设置文件损坏：%w"), err)
 	}
 	if err := decoder.Decode(new(any)); err != io.EOF {
-		return domain.Preferences{}, errors.New("设置文件损坏：包含多余数据")
+		return domain.Preferences{}, errors.New(locale.T("设置文件损坏：包含多余数据"))
 	}
 	if record.Version != 1 || record.Settings == nil {
-		return domain.Preferences{}, errors.New("设置文件版本或内容无效")
+		return domain.Preferences{}, errors.New(locale.T("设置文件版本或内容无效"))
 	}
 	if err := record.Settings.Validate(); err != nil {
-		return domain.Preferences{}, fmt.Errorf("设置文件内容无效：%w", err)
+		return domain.Preferences{}, fmt.Errorf(locale.T("设置文件内容无效：%w"), err)
 	}
 	return *record.Settings, ctx.Err()
 }

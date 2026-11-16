@@ -9,6 +9,7 @@ import (
 
 	"github.com/MaLuns/wallhaven-electron/internal/app"
 	"github.com/MaLuns/wallhaven-electron/internal/domain"
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
 	kit "github.com/egoist/mygo/ui"
 )
 
@@ -71,11 +72,11 @@ func (a *App) loadOriginal(rawURL string) {
 	a.viewer.loading = false
 	a.viewer.progress = 0
 	if rawURL == "" {
-		a.viewer.error = "暂未获取到原图地址"
+		a.viewer.error = locale.T("暂未获取到原图地址")
 		return
 	}
 	if a.fullImages == nil || a.dispatch == nil {
-		a.viewer.error = "原图加载服务尚未就绪"
+		a.viewer.error = locale.T("原图加载服务尚未就绪")
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -113,7 +114,7 @@ func (a *App) loadOriginal(rawURL string) {
 				return
 			}
 			if bitmap == nil {
-				a.viewer.error = "原图解码失败"
+				a.viewer.error = locale.T("原图解码失败")
 				return
 			}
 			a.viewer.image = bitmap
@@ -156,8 +157,8 @@ func (a *App) detailView(c *kit.Context) {
 		panel.OnShortcut(0, kit.KeyLeft, a.controller.PreviousDetail).
 			OnShortcut(0, kit.KeyRight, a.controller.NextDetail)
 		backdrop.Background(kit.RGBA(0, 0, 0, .71))
-		panel.Label("壁纸详情").Absolute().Left(0).Top(0).Size(width, height).Clip().Children(func() {
-			canvas := kit.Box(c.Key("detail-canvas")).Label("壁纸大图").Fill().Clip().Focusable().HandleInput(a.viewerInput)
+		panel.Label(locale.T("壁纸详情")).Absolute().Left(0).Top(0).Size(width, height).Clip().Children(func() {
+			canvas := kit.Box(c.Key("detail-canvas")).Label(locale.T("壁纸大图")).Fill().Clip().Focusable().HandleInput(a.viewerInput)
 			canvas.Children(func() { a.detailPicture(c, state.Wallpaper, width, height) })
 			a.detailImageStatus(c)
 			a.detailNavigationStatus(c, state.Navigation)
@@ -230,14 +231,14 @@ func (a *App) detailImageStatus(c *kit.Context) {
 		finished := status.AnimateTo("complete", complete, kit.Animation{Duration: 180 * time.Millisecond, NonMotion: true})
 		if a.viewer.loading || (a.viewer.progress == 1 && finished < 1) {
 			status.Children(func() {
-				kit.Progress(c.Key("original-progress"), a.viewer.progress).Label("原图加载中").Width(70).MaxWidthPercent(65).Height(3).Radius(1.5).
+				kit.Progress(c.Key("original-progress"), a.viewer.progress).Label(locale.T("原图加载中")).Width(70).MaxWidthPercent(65).Height(3).Radius(1.5).
 					Background(hexColor("414145")).TextColor(hexColor("3b82f6"))
 			})
 		}
 	} else if a.viewer.error != "" {
 		kit.Column(c.Key("original-status")).Absolute().Top(24).Left(20).Right(90).AlignItems(kit.Center).Gap(8).Children(func() {
-			kit.Text(c, a.viewer.error).FontSize(14).TextColor(hexColor("ffffff")).Background(kit.RGBA(0, 0, 0, .6)).Padding(6, 12).Radius(4)
-			legacyChip(c, "retry-original", "重试原图", false).Background(legacyPalette(c).Dialog).OnClick(func() { a.loadOriginal(a.controller.DetailState().Wallpaper.Path) })
+			kit.Text(c, locale.T(a.viewer.error)).FontSize(14).TextColor(hexColor("ffffff")).Background(kit.RGBA(0, 0, 0, .6)).Padding(6, 12).Radius(4)
+			legacyChip(c, "retry-original", locale.T("重试原图"), false).Background(legacyPalette(c).Dialog).OnClick(func() { a.loadOriginal(a.controller.DetailState().Wallpaper.Path) })
 		})
 	}
 }
@@ -247,13 +248,13 @@ func (a *App) detailNavigationStatus(c *kit.Context, navigation app.DetailNaviga
 		return
 	}
 	kit.Column(c.Key("detail-navigation-status")).Absolute().Left(20).Right(90).Bottom(88).AlignItems(kit.Center).Gap(8).Children(func() {
-		message := "正在加载下一页…"
+		message := locale.T("正在加载下一页…")
 		if navigation.Error != "" {
-			message = "下一页加载失败：" + navigation.Error
+			message = locale.T("下一页加载失败：") + locale.T(navigation.Error)
 		}
 		kit.Text(c, message).FontSize(14).TextColor(hexColor("ffffff")).Background(kit.RGBA(0, 0, 0, .6)).Padding(6, 12).Radius(4)
 		if navigation.Error != "" {
-			legacyChip(c, "retry-detail-page", "重试下一页", false).Background(legacyPalette(c).Dialog).OnClick(a.controller.NextDetail)
+			legacyChip(c, "retry-detail-page", locale.T("重试下一页"), false).Background(legacyPalette(c).Dialog).OnClick(a.controller.NextDetail)
 		}
 	})
 }
@@ -317,7 +318,7 @@ func detailIconButton(c *kit.Context, name, label string, tipSide kit.Anchor) ki
 	button.Children(func() { appIcon(c, name, 18) })
 	kit.TooltipBase(c.Key(name+"-tooltip"), button, func(tip kit.Element) {
 		p := legacyPalette(c)
-		tip.Label("操作提示 "+label).Padding(6, 10).Radius(6).Background(p.Dialog).TextColor(p.Text).Border(1, p.Border.Alpha(.5)).Shadow(0, 2, 8, 0, kit.RGBA(0, 0, 0, .2))
+		tip.Label(locale.T("操作提示 ")+label).Padding(6, 10).Radius(6).Background(p.Dialog).TextColor(p.Text).Border(1, p.Border.Alpha(.5)).Shadow(0, 2, 8, 0, kit.RGBA(0, 0, 0, .2))
 		if tipSide == kit.AnchorLeft {
 			tip.AttachTo(button, kit.AnchorLeft, kit.AnchorRight).Margin(0, 8, 0, 0)
 		} else {
@@ -331,9 +332,9 @@ func detailIconButton(c *kit.Context, name, label string, tipSide kit.Anchor) ki
 func (a *App) detailNavigation(c *kit.Context, navigation app.DetailNavigation, width float32) {
 	navigationWidth := 2*detailButtonSize + 2*detailButtonGap + 64
 	kit.Row(c.Key("detail-navigation")).Absolute().Left((width-navigationWidth)/2).Bottom(20).Size(navigationWidth, detailButtonSize).Gap(detailButtonGap).AlignItems(kit.Center).Children(func() {
-		detailIconButton(c, "left", "上一张", kit.AnchorTop).Disabled(!navigation.HasPrevious).OnClick(a.controller.PreviousDetail)
-		kit.Textf(c, "%.0f%%", a.viewer.fit*a.viewer.zoom*100).Label("图片缩放比例").Width(64).TextAlign(kit.Center).FontSize(18).TextColor(hexColor("cacaca")).IgnoreInput(true)
-		detailIconButton(c, "right", "下一张", kit.AnchorTop).Disabled(!navigation.HasNext || navigation.Waiting).OnClick(a.controller.NextDetail)
+		detailIconButton(c, "left", locale.T("上一张"), kit.AnchorTop).Disabled(!navigation.HasPrevious).OnClick(a.controller.PreviousDetail)
+		kit.Textf(c, "%.0f%%", a.viewer.fit*a.viewer.zoom*100).Label(locale.T("图片缩放比例")).Width(64).TextAlign(kit.Center).FontSize(18).TextColor(hexColor("cacaca")).IgnoreInput(true)
+		detailIconButton(c, "right", locale.T("下一张"), kit.AnchorTop).Disabled(!navigation.HasNext || navigation.Waiting).OnClick(a.controller.NextDetail)
 	})
 }
 
@@ -344,22 +345,22 @@ func (a *App) detailToolbar(c *kit.Context, width, height float32) {
 			name, label string
 			run         func()
 		}{
-			{"close", "关闭详情", a.closeDetail},
-			{"reset", "还原图片", func() { a.viewer.zoom = 1; a.viewer.panX = 0; a.viewer.panY = 0 }},
-			{"about", "图片信息", func() { a.viewer.showInfo = !a.viewer.showInfo }},
+			{"close", locale.T("关闭详情"), a.closeDetail},
+			{"reset", locale.T("还原图片"), func() { a.viewer.zoom = 1; a.viewer.panX = 0; a.viewer.panY = 0 }},
+			{"about", locale.T("图片信息"), func() { a.viewer.showInfo = !a.viewer.showInfo }},
 		} {
 			detailIconButton(c, action.name, action.label, kit.AnchorLeft).OnClick(action.run)
 		}
-		preview := detailIconButton(c, "desktop-preview", "桌面预览", kit.AnchorLeft).
+		preview := detailIconButton(c, "desktop-preview", locale.T("桌面预览"), kit.AnchorLeft).
 			Disabled(a.desktopPreview == nil || !a.desktopPreview.Available() || a.desktopPreview.NeedsCleanup()).OnClick(a.enterDesktopPreview)
 		if a.desktopPreview == nil || !a.desktopPreview.Available() {
-			preview.Description("当前平台暂不支持桌面预览")
+			preview.Description(locale.T("当前平台暂不支持桌面预览"))
 		}
-		for _, action := range []struct{ name, label string }{{"download", "下载"}, {"wallpaper", "设为壁纸"}, {"favorite", "收藏"}} {
+		for _, action := range []struct{ name, label string }{{"download", locale.T("下载原图")}, {"wallpaper", locale.T("设为壁纸原图")}, {"favorite", locale.T("收藏原图")}} {
 			wallpaper := a.controller.DetailState().Wallpaper
-			label := action.label + "原图"
+			label := action.label
 			if action.name == "favorite" && a.actions != nil && a.actions.IsFavorite(wallpaper.ID) {
-				label = "取消收藏原图"
+				label = locale.T("取消收藏原图")
 			}
 			a.bindWallpaperAction(c, detailIconButton(c, action.name, label, kit.AnchorLeft), action.name, wallpaper)
 		}
@@ -370,41 +371,41 @@ func (a *App) detailInformation(c *kit.Context, state app.DetailState, height fl
 	p := legacyPalette(c)
 	w := state.Wallpaper
 	detail := state.Detail
-	kit.Scroll(c.Key("detail-information")).Label("图片详细信息").Absolute().Left(20).Bottom(50).MaxWidth(320).MaxWidthPercent(65).MaxHeight(min(250, height*.45)).Padding(12).Radius(8).
+	kit.Scroll(c.Key("detail-information")).Label(locale.T("图片详细信息")).Absolute().Left(20).Bottom(50).MaxWidth(320).MaxWidthPercent(65).MaxHeight(min(250, height*.45)).Padding(12).Radius(8).
 		Draw(frostedBackground(p.Dialog.Alpha(.55), 8)).
 		Transition(kit.ElementTransition{Duration: 160 * time.Millisecond, ExitDuration: 120 * time.Millisecond, Enter: &kit.Motion{}, Exit: &kit.Motion{}}).Children(func() {
 		kit.Column(c).Gap(7).Children(func() {
-			kit.Text(c, "壁纸 "+w.ID).FontSize(16).Bold().TextColor(p.Text)
+			kit.Text(c, locale.T("壁纸 ")+w.ID).FontSize(16).Bold().TextColor(p.Text)
 			kit.Text(c, w.Resolution+" · "+fileSize(w.FileSize)+" · "+w.FileType).FontSize(12).TextColor(p.Text)
-			category := map[string]string{"general": "通用", "anime": "动漫", "people": "人物"}[w.Category]
+			category := map[string]string{"general": locale.T("通用"), "anime": locale.T("动漫"), "people": locale.T("人物")}[w.Category]
 			if category == "" {
 				category = w.Category
 			}
 			kit.Text(c, strings.TrimSpace(category+"  "+strings.ToUpper(w.Purity))).FontSize(12).TextColor(p.Text)
 			if state.Loading {
-				kit.Text(c, "详情加载中…").FontSize(12).TextColor(p.Text)
+				kit.Text(c, locale.T("详情加载中…")).FontSize(12).TextColor(p.Text)
 			} else if state.Error != "" {
-				kit.Text(c, state.Error).FontSize(12).TextColor(p.Text)
-				legacyChip(c, "retry-detail", "重试详情", false).OnClick(a.controller.RetryDetail)
+				kit.Text(c, locale.T(state.Error)).FontSize(12).TextColor(p.Text)
+				legacyChip(c, "retry-detail", locale.T("重试详情"), false).OnClick(a.controller.RetryDetail)
 			} else {
-				kit.Text(c, fmt.Sprintf("查看 %d · 收藏 %d", detail.Views, detail.Favorites)).FontSize(12).TextColor(p.Text)
+				kit.Text(c, fmt.Sprintf(locale.T("查看 %d · 收藏 %d"), detail.Views, detail.Favorites)).FontSize(12).TextColor(p.Text)
 				if detail.Uploader != "" {
-					kit.Text(c, "上传者："+detail.Uploader).FontSize(12).TextColor(p.Text)
+					kit.Text(c, locale.T("上传者：")+detail.Uploader).FontSize(12).TextColor(p.Text)
 				}
 				if detail.CreatedAt != "" {
-					kit.Text(c, "上传于 "+detail.CreatedAt).FontSize(12).TextColor(p.Text)
+					kit.Text(c, locale.T("上传于 ")+detail.CreatedAt).FontSize(12).TextColor(p.Text)
 				}
 				if len(detail.Tags) > 0 {
 					names := make([]string, len(detail.Tags))
 					for i, tag := range detail.Tags {
 						names[i] = tag.Name
 					}
-					kit.Text(c, "标签："+strings.Join(names, "、")).FontSize(12).TextColor(p.Text).Wrap()
+					kit.Text(c, locale.T("标签：")+strings.Join(names, locale.T("、"))).FontSize(12).TextColor(p.Text).Wrap()
 				}
 				if len(detail.Colors) > 0 {
 					kit.Row(c).Gap(4).Children(func() {
 						for i, color := range detail.Colors[:min(12, len(detail.Colors))] {
-							kit.Box(c.Key(i)).Label("主色 #"+strings.TrimPrefix(color, "#")).Size(16, 16).Radius(3).Background(hexColor(color))
+							kit.Box(c.Key(i)).Label(locale.T("主色 #")+strings.TrimPrefix(color, "#")).Size(16, 16).Radius(3).Background(hexColor(color))
 						}
 					})
 				}

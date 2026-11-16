@@ -11,6 +11,8 @@ import (
 	"github.com/ebitengine/purego"
 	"github.com/ebitengine/purego/objc"
 	"github.com/egoist/mygo"
+
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
 )
 
 var previewSelectors = struct {
@@ -42,7 +44,7 @@ func (p *darwinPreviewPlatform) restoreApplications(done func(error)) { p.visibi
 
 func (*darwinPreviewPlatform) prepareWindow(handle uintptr, bounds mygo.Rectangle) error {
 	if handle == 0 {
-		return errors.New("桌面预览窗口不可用")
+		return errors.New(locale.T("桌面预览窗口不可用"))
 	}
 	previewCG.once.Do(func() {
 		library, err := purego.Dlopen("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics", purego.RTLD_NOW|purego.RTLD_GLOBAL)
@@ -58,13 +60,13 @@ func (*darwinPreviewPlatform) prepareWindow(handle uintptr, bounds mygo.Rectangl
 		purego.RegisterFunc(&previewCG.level, symbol)
 	})
 	if previewCG.err != nil {
-		return errors.New("无法读取系统桌面窗口层级")
+		return errors.New(locale.T("无法读取系统桌面窗口层级"))
 	}
 	// CGWindowLevelKey.desktopWindow=2, desktopIconWindow=18. Resolve the
 	// values at runtime: never hard-code negative WindowServer layer values.
 	level, icons := previewCG.level(2)+1, previewCG.level(18)
 	if level >= icons {
-		return errors.New("系统未提供壁纸与桌面图标之间的窗口层级")
+		return errors.New(locale.T("系统未提供壁纸与桌面图标之间的窗口层级"))
 	}
 	window := objc.ID(handle)
 	// MyGO's Frameless keeps NSWindowStyleMaskTitled and hides its chrome.
@@ -81,7 +83,7 @@ func (*darwinPreviewPlatform) prepareWindow(handle uintptr, bounds mygo.Rectangl
 	// rather than its work area, including the area behind the menu bar.
 	screens := objc.Send[objc.ID](objc.ID(objc.GetClass("NSScreen")), objc.RegisterName("screens"))
 	if objc.Send[uint64](screens, previewSelectors.count) == 0 {
-		return errors.New("未找到可用屏幕")
+		return errors.New(locale.T("未找到可用屏幕"))
 	}
 	primary := objc.Send[objc.ID](screens, previewSelectors.at, uint64(0))
 	frame := objc.Send[previewScreenRect](primary, objc.RegisterName("frame"))
@@ -118,7 +120,7 @@ func (a *darwinPreviewApplication) Release() { objc.Send[uintptr](a.id, previewS
 func snapshotPreviewApplications() ([]previewApplication, error) {
 	workspaceClass, applicationClass := objc.GetClass("NSWorkspace"), objc.GetClass("NSRunningApplication")
 	if workspaceClass == 0 || applicationClass == 0 {
-		return nil, errors.New("系统应用管理接口不可用")
+		return nil, errors.New(locale.T("系统应用管理接口不可用"))
 	}
 	pool := objc.Send[objc.ID](objc.ID(objc.GetClass("NSAutoreleasePool")), previewSelectors.newPool)
 	defer objc.Send[uintptr](pool, previewSelectors.drain)
@@ -126,7 +128,7 @@ func snapshotPreviewApplications() ([]previewApplication, error) {
 	current := objc.Send[objc.ID](objc.ID(applicationClass), previewSelectors.current)
 	applications := objc.Send[objc.ID](workspace, previewSelectors.running)
 	if applications == 0 {
-		return nil, errors.New("无法读取正在运行的应用")
+		return nil, errors.New(locale.T("无法读取正在运行的应用"))
 	}
 	var result []previewApplication
 	for i, count := uint64(0), objc.Send[uint64](applications, previewSelectors.count); i < count; i++ {
@@ -137,7 +139,7 @@ func snapshotPreviewApplications() ([]previewApplication, error) {
 			continue
 		}
 		name := objc.Send[objc.ID](application, previewSelectors.name)
-		label := "未命名应用"
+		label := locale.T("未命名应用")
 		if name != 0 {
 			label = objc.Send[string](name, previewSelectors.utf8)
 		}

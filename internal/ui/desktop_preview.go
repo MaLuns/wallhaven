@@ -7,6 +7,7 @@ import (
 
 	"github.com/MaLuns/wallhaven-electron/internal/app"
 	"github.com/MaLuns/wallhaven-electron/internal/domain"
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
 	kit "github.com/egoist/mygo/ui"
 )
 
@@ -156,57 +157,57 @@ func (a *App) DesktopControlsView(c *kit.Context) {
 	stripWidth := min(contentWidth, available)
 	remaining := contentWidth - a.desktopViewer.scroll.X - stripWidth
 	selectionChanged := a.desktopViewer.selected != state.Wallpaper.ID
-	root := kit.Column(c.Key("desktop-preview-controls")).Label("桌面预览操作栏").Fill().Padding(desktopControlsInset).Gap(desktopControlsGap).AlignItems(kit.Center).
+	root := kit.Column(c.Key("desktop-preview-controls")).Label(locale.T("桌面预览操作栏")).Fill().Padding(desktopControlsInset).Gap(desktopControlsGap).AlignItems(kit.Center).
 		Background(kit.Transparent).TextColor(hexColor("ffffff")).Focusable().AutoFocus().HandleInput(a.desktopWheel).
 		OnShortcut(0, kit.KeyEscape, a.exitDesktopPreview).
 		OnShortcut(0, kit.KeyLeft, func() { a.MoveDesktopPreview(-1) }).
 		OnShortcut(0, kit.KeyRight, func() { a.MoveDesktopPreview(1) })
 	root.Children(func() {
-		kit.Row(c.Key("toolbar")).Label("桌面预览工具栏").Width(min(available, desktopToolbarWidth)).Height(desktopToolbarHeight).Shrink(0).Padding(6, 10).Gap(8).AlignItems(kit.Center).
+		kit.Row(c.Key("toolbar")).Label(locale.T("桌面预览工具栏")).Width(min(available, desktopToolbarWidth)).Height(desktopToolbarHeight).Shrink(0).Padding(6, 10).Gap(8).AlignItems(kit.Center).
 			Radius(desktopToolbarHeight/2).Background(hexColor("191d30").Alpha(.9)).Border(1, kit.RGBA(255, 255, 255, .14)).Shadow(0, 4, 14, 0, kit.RGBA(0, 0, 0, .25)).Children(func() {
-			desktopPreviewButton(c, "left", "left", "上一张桌面预览").Disabled(!state.Navigation.HasPrevious).OnClick(func() { a.MoveDesktopPreview(-1) })
-			kit.Textf(c, "%d / %d", max(0, selected+1), len(wallpapers)).Label("桌面预览序号").FontSize(13).Width(64).TextAlign(kit.Center).TextColor(kit.RGBA(255, 255, 255, .9)).Shrink(0)
-			desktopPreviewButton(c, "right", "right", "下一张桌面预览").Disabled(!state.Navigation.HasNext || state.Navigation.Waiting).OnClick(func() { a.MoveDesktopPreview(1) })
+			desktopPreviewButton(c, "left", "left", locale.T("上一张桌面预览")).Disabled(!state.Navigation.HasPrevious).OnClick(func() { a.MoveDesktopPreview(-1) })
+			kit.Textf(c, "%d / %d", max(0, selected+1), len(wallpapers)).Label(locale.T("桌面预览序号")).FontSize(13).Width(64).TextAlign(kit.Center).TextColor(kit.RGBA(255, 255, 255, .9)).Shrink(0)
+			desktopPreviewButton(c, "right", "right", locale.T("下一张桌面预览")).Disabled(!state.Navigation.HasNext || state.Navigation.Waiting).OnClick(func() { a.MoveDesktopPreview(1) })
 			kit.Box(c.Key("navigation-divider")).Size(1, 16).Margin(0, 4).Shrink(0).Background(kit.RGBA(255, 255, 255, .18))
-			message := "← → 切图 · Esc 退出"
+			message := locale.T("← → 切图 · Esc 退出")
 			if a.viewer.loading {
-				message = fmt.Sprintf("原图加载中 %.0f%%", a.viewer.progress*100)
+				message = fmt.Sprintf(locale.T("原图加载中 %.0f%%"), a.viewer.progress*100)
 			}
 			if a.viewer.error != "" {
-				message = a.viewer.error
+				message = locale.T(a.viewer.error)
 			}
 			if pagination.Loading {
-				message = "正在加载下一页…"
+				message = locale.T("正在加载下一页…")
 			}
 			if pagination.Error != "" {
-				message = "下一页加载失败"
+				message = locale.T("下一页加载失败")
 			}
 			if a.actions != nil && a.desktopViewer.wallpaperID != "" && a.desktopViewer.wallpaperID == state.Wallpaper.ID {
 				if transfer, ok := a.actions.Transfer(domain.WallpaperTransfer, state.Wallpaper.ID); ok {
 					message = transferStatus(transfer)
 				} else if notice := a.actions.Notice(); notice.Message != "" {
-					message = notice.Message
+					message = locale.T(notice.Message)
 				}
 			}
-			kit.Text(c, message).Label("桌面预览状态").Tooltip(message).FontSize(12).TextColor(kit.RGBA(255, 255, 255, .65)).Grow(1).MinWidth(0).SingleLine().Clip()
+			kit.Text(c, message).Label(locale.T("桌面预览状态")).Tooltip(message).FontSize(12).TextColor(kit.RGBA(255, 255, 255, .65)).Grow(1).MinWidth(0).SingleLine().Clip()
 			if a.viewer.error != "" {
-				desktopPreviewButton(c, "retry-original", "refresh", "重试原图").OnClick(func() { a.loadOriginal(state.Wallpaper.Path); a.redrawDesktopPreview() })
+				desktopPreviewButton(c, "retry-original", "refresh", locale.T("重试原图")).OnClick(func() { a.loadOriginal(state.Wallpaper.Path); a.redrawDesktopPreview() })
 			}
 			if pagination.Error != "" {
-				desktopPreviewButton(c, "retry-page", "refresh", "重试下一页").OnClick(func() { a.controller.LoadMoreDetail(); a.redrawDesktopPreview() })
+				desktopPreviewButton(c, "retry-page", "refresh", locale.T("重试下一页")).OnClick(func() { a.controller.LoadMoreDetail(); a.redrawDesktopPreview() })
 			}
 			kit.Box(c.Key("exit-divider")).Size(1, 16).Margin(0, 4).Shrink(0).Background(kit.RGBA(255, 255, 255, .18))
-			setWallpaper := desktopPreviewButton(c, "set-wallpaper", "wallpaper", "设为壁纸").Disabled(!state.Open).OnClick(func() {
+			setWallpaper := desktopPreviewButton(c, "set-wallpaper", "wallpaper", locale.T("设为壁纸")).Disabled(!state.Open).OnClick(func() {
 				a.desktopViewer.wallpaperID = state.Wallpaper.ID
 				a.redrawDesktopPreview()
 			})
 			a.bindWallpaperAction(c, setWallpaper, "wallpaper", state.Wallpaper)
-			desktopPreviewButton(c, "close", "close", "退出桌面预览").OnClick(a.exitDesktopPreview)
+			desktopPreviewButton(c, "close", "close", locale.T("退出桌面预览")).OnClick(a.exitDesktopPreview)
 		})
 		bounds := a.desktopViewer.scroll.Bounds(c)
 		fade := min(desktopStripFadeWidth/max(stripWidth, 1), .25)
 		opaque := kit.RGB(255, 255, 255)
-		kit.ScrollHorizontal(c.Key("wallpapers")).Label("桌面预览壁纸列表").TrackScroll(&a.desktopViewer.scroll).Width(stripWidth).Height(desktopStripHeight).Shrink(0).
+		kit.ScrollHorizontal(c.Key("wallpapers")).Label(locale.T("桌面预览壁纸列表")).TrackScroll(&a.desktopViewer.scroll).Width(stripWidth).Height(desktopStripHeight).Shrink(0).
 			Padding(0, 8).Gap(desktopThumbnailGap).AlignItems(kit.Center).Background(kit.Transparent).Scrollbars(false).HandleInput(a.desktopWheel).
 			MaskLinearGradient(kit.LinearGradient{Angle: 90, Stops: []kit.GradientStop{
 				{Color: opaque.Alpha(1 - min(max(a.desktopViewer.scroll.X, 0)/desktopStripFadeWidth, 1)), At: 0},
@@ -266,7 +267,7 @@ func desktopPreviewButton(c *kit.Context, key, icon, label string) kit.Element {
 }
 
 func (a *App) desktopThumbnail(c *kit.Context, wallpaper domain.Wallpaper, visible, selected, reveal bool) {
-	button := kit.ButtonBase(c.Key(wallpaper.ID)).Label("桌面预览 "+wallpaper.ID).Description(wallpaper.Resolution).Size(desktopThumbnailWidth, desktopThumbnailHeight).Shrink(0).
+	button := kit.ButtonBase(c.Key(wallpaper.ID)).Label(locale.T("桌面预览 ")+wallpaper.ID).Description(wallpaper.Resolution).Size(desktopThumbnailWidth, desktopThumbnailHeight).Shrink(0).
 		Padding(0).Radius(12).Background(kit.RGBA(17, 20, 32, .3)).FocusRing(false).Clip().
 		OnClick(func() { a.controller.SelectDetail(wallpaper.ID); a.redrawDesktopPreview() })
 	selection := float32(0)
@@ -303,21 +304,21 @@ func (a *App) desktopPreviewStatus(c *kit.Context) {
 		return
 	}
 	state := a.desktopPreview.State()
-	message := state.Error
+	message := locale.T(state.Error)
 	label := ""
 	switch state.Phase {
 	case app.DesktopPreviewEntering:
-		message, label = "正在进入桌面预览…", "取消桌面预览"
+		message, label = locale.T("正在进入桌面预览…"), locale.T("取消桌面预览")
 	case app.DesktopPreviewExiting:
-		message = "正在恢复其他应用…"
+		message = locale.T("正在恢复其他应用…")
 	case app.DesktopPreviewRestoreFailed:
-		label = "重试恢复窗口"
+		label = locale.T("重试恢复窗口")
 	}
 	if message == "" || state.Phase == app.DesktopPreviewActive {
 		return
 	}
 	p := legacyPalette(c)
-	kit.Row(c.Key("desktop-preview-status")).Label("桌面预览提示").Absolute().Top(116).Left(20).Right(80).Gap(10).Padding(8, 12).Radius(8).Background(p.Dialog).TextColor(p.Text).AlignItems(kit.Center).Children(func() {
+	kit.Row(c.Key("desktop-preview-status")).Label(locale.T("桌面预览提示")).Absolute().Top(116).Left(20).Right(80).Gap(10).Padding(8, 12).Radius(8).Background(p.Dialog).TextColor(p.Text).AlignItems(kit.Center).Children(func() {
 		kit.Text(c, message).FontSize(13).Grow(1).MinWidth(0).Wrap()
 		if label != "" {
 			legacyChip(c, "restore", label, false).OnClick(a.exitDesktopPreview)

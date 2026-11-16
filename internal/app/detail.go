@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/MaLuns/wallhaven-electron/internal/domain"
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
 )
 
 // DetailState is UI-thread-owned, like the search snapshot. The selected
@@ -53,15 +54,15 @@ func (c *Controller) selectDetail(wallpaper domain.Wallpaper) {
 	generation := c.detailGeneration
 	c.detail = DetailState{Open: true, Wallpaper: wallpaper, Detail: domain.WallpaperDetail{Wallpaper: wallpaper}, Generation: generation}
 	if wallpaper.ID == "" {
-		c.detail.Error = "壁纸编号无效"
+		c.detail.Error = locale.T("壁纸编号无效")
 		return
 	}
 	if c.details == nil {
-		c.detail.Error = "此壁纸来源暂不提供详细信息"
+		c.detail.Error = locale.T("此壁纸来源暂不提供详细信息")
 		return
 	}
 	if c.dispatch == nil {
-		c.detail.Error = "界面更新服务尚未就绪"
+		c.detail.Error = locale.T("界面更新服务尚未就绪")
 		return
 	}
 	ctx, cancel := context.WithCancel(c.ctx)
@@ -80,7 +81,7 @@ func (c *Controller) selectDetail(wallpaper domain.Wallpaper) {
 				return
 			}
 			if result.Wallpaper.ID != wallpaper.ID {
-				c.detail.Error = "壁纸服务返回了不匹配的详情"
+				c.detail.Error = locale.T("壁纸服务返回了不匹配的详情")
 				return
 			}
 			c.detail.Detail = cloneDetail(result)

@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/MaLuns/wallhaven-electron/internal/domain"
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
+	"github.com/egoist/mygo/i18n"
 	kit "github.com/egoist/mygo/ui"
 )
 
@@ -19,7 +21,7 @@ func SettingsCornerRadius() int {
 }
 
 // SettingsView retains public/config.html's fixed 450×340 window, dark
-// background, blue frame/divider, 100px labels and the three original options.
+// background, blue frame/divider and 100px labels, with a language selector.
 func (a *App) SettingsView(c *kit.Context) {
 	theme := *kit.DarkTheme()
 	theme.Background, theme.Text, theme.Accent = hexColor("201f29"), hexColor("eeeeee"), hexColor("2d8cf0")
@@ -28,9 +30,9 @@ func (a *App) SettingsView(c *kit.Context) {
 	theme.Inverse, theme.InverseText = p.Dialog, p.Text
 	c.SetTheme(&theme)
 	c.Root().Background(kit.Transparent)
-	kit.Column(c.Key("settings")).Label("应用设置").Fill().Background(theme.Background).Border(4, hexColor("266294")).Radius(float32(SettingsCornerRadius())).TextColor(hexColor("c2c2c2")).Clip().Children(func() {
-		kit.Row(c.Key("settings-header")).Label("设置标题栏").FillWidth().Height(42).Shrink(0).Padding(10, 20, 8).AlignItems(kit.Center).DragWindow().Children(func() {
-			kit.Text(c, "设置").FontSize(18).Bold().TextColor(hexColor("eeeeee")).Grow(1)
+	kit.Column(c.Key("settings")).Label(locale.T("应用设置")).Fill().Background(theme.Background).Border(4, hexColor("266294")).Radius(float32(SettingsCornerRadius())).TextColor(hexColor("c2c2c2")).Clip().DragWindow().Children(func() {
+		kit.Row(c.Key("settings-header")).Label(locale.T("设置标题栏")).FillWidth().Height(42).Shrink(0).Padding(10, 20, 8).AlignItems(kit.Center).DragWindow().Children(func() {
+			kit.Text(c, locale.T("设置")).FontSize(18).Bold().TextColor(hexColor("eeeeee")).Grow(1).IgnoreInput(true)
 			legacyIconButton(c, "close-settings", "close", "关闭设置", 18).Size(18, 18).TextColor(hexColor("eeeeee")).OnClick(func() {
 				if a.onCloseSettings != nil {
 					a.onCloseSettings()
@@ -40,17 +42,18 @@ func (a *App) SettingsView(c *kit.Context) {
 			})
 		})
 		kit.Box(c).Absolute().Left(100).Top(66).Bottom(24).Width(2).Radius(2).Background(hexColor("266294")).IgnoreInput(true)
-		kit.Scroll(c.Key("settings-body")).Label("设置选项").Grow(1).MinHeight(0).FillWidth().Children(func() {
-			kit.Column(c).FillWidth().Padding(40, 20, 20).Gap(20).Children(func() {
+		kit.Scroll(c.Key("settings-body")).Label(locale.T("设置选项")).Grow(1).MinHeight(0).FillWidth().Children(func() {
+			kit.Column(c).FillWidth().Padding(20).Gap(12).Children(func() {
+				a.settingsRow(c, "语言", func() { a.languageSelector(c) })
 				if a.preferences == nil {
-					kit.Text(c, "设置服务尚未就绪").FontSize(14)
+					kit.Text(c, locale.T("设置服务尚未就绪")).FontSize(14)
 					return
 				}
 				state := a.preferences.State()
 				disabled := !state.Ready || state.Busy() || a.choosingDirectory
 				a.settingsRow(c, "预览模式", func() {
 					kit.Row(c).Gap(5).AlignItems(kit.Center).Children(func() {
-						kit.Text(c, "普通模式").FontSize(14)
+						kit.Text(c, locale.T("普通模式")).FontSize(14)
 						waterfall := state.Values.PreviewMode != domain.PreviewTile
 						if settingsSwitch(c.Key("preview-mode"), "瀑布流模式", &waterfall, disabled).Changed() {
 							mode := domain.PreviewTile
@@ -59,7 +62,7 @@ func (a *App) SettingsView(c *kit.Context) {
 							}
 							a.preferences.SetPreviewMode(mode)
 						}
-						kit.Text(c, "瀑布流模式").FontSize(14)
+						kit.Text(c, locale.T("瀑布流模式")).FontSize(14)
 					})
 				})
 				a.settingsRow(c, "开机启动", func() {
@@ -69,8 +72,8 @@ func (a *App) SettingsView(c *kit.Context) {
 					}
 				})
 				a.settingsRow(c, "下载目录", func() {
-					kit.Column(c).FillWidth().Gap(20).Children(func() {
-						kit.Text(c, "当前目录："+state.Values.DownloadPath).FontSize(14).LineHeight(1.4).MaxHeight(80).Clip().Tooltip(state.Values.DownloadPath)
+					kit.Column(c).FillWidth().Gap(12).Children(func() {
+						kit.Text(c, locale.T("当前目录：")+state.Values.DownloadPath).FontSize(14).LineHeight(1.4).MaxHeight(80).Clip().Tooltip(state.Values.DownloadPath)
 						kit.Row(c).Gap(20).Children(func() {
 							settingsButton(c.Key("choose-directory"), "修改目录").Disabled(disabled).OnClick(a.chooseDownloadDirectory)
 							settingsButton(c.Key("open-directory"), "打开文件位置").Disabled(disabled).OnClick(a.preferences.OpenDownloadDirectory)
@@ -78,13 +81,13 @@ func (a *App) SettingsView(c *kit.Context) {
 					})
 				})
 				if state.Loading {
-					kit.Text(c, "正在加载设置…").FontSize(12)
+					kit.Text(c, locale.T("正在加载设置…")).FontSize(12)
 				} else if state.Saving {
-					kit.Text(c, "正在保存设置…").FontSize(12)
+					kit.Text(c, locale.T("正在保存设置…")).FontSize(12)
 				}
 				if state.Error != "" {
 					kit.Column(c).FillWidth().Gap(8).Children(func() {
-						kit.Text(c, state.Error).FontSize(12).LineHeight(1.4).TextColor(hexColor("ff8f8f"))
+						kit.Text(c, locale.T(state.Error)).FontSize(12).LineHeight(1.4).TextColor(hexColor("ff8f8f"))
 						if !state.Ready && !state.Loading {
 							settingsButton(c.Key("retry-settings"), "重试加载设置").OnClick(a.preferences.Load)
 						}
@@ -95,9 +98,60 @@ func (a *App) SettingsView(c *kit.Context) {
 	})
 }
 
+func (a *App) languageSelector(c *kit.Context) {
+	if a.chosenLanguage != nil {
+		chosen := a.chosenLanguage()
+		a.language = ""
+		if chosen != "" {
+			a.language = i18n.Match([]string{chosen}, []string{"zh-Hans", "en"})
+		}
+	}
+	selector := kit.SelectBase(c.Key("language"), &a.language)
+	options := []struct{ tag, title string }{
+		{"", locale.T("跟随系统")}, {"zh-Hans", "简体中文"}, {"en", "English"},
+	}
+	title := options[0].title
+	for _, option := range options {
+		if option.tag == a.language {
+			title = option.title
+			break
+		}
+	}
+	selector.Trigger.Label(locale.T("界面语言")).Value(title).Disabled(a.onChangeLanguage == nil).
+		FillWidth().Height(30).Padding(4, 10).Radius(6).Border(1, hexColor("eeeeee")).Background(kit.Transparent).TextColor(hexColor("c2c2c2")).
+		Children(func() {
+			kit.Row(c).FillWidth().AlignItems(kit.Center).Gap(8).Children(func() {
+				kit.Text(c, title).FontSize(14).Grow(1).SingleLine().IgnoreInput(true)
+				appIcon(c, "chevron-down", 14)
+			})
+		})
+	if selector.Trigger.Hovered() {
+		selector.Trigger.Border(1, hexColor("4d98e7")).TextColor(hexColor("4d98e7"))
+	}
+	selector.Popup(func(panel kit.Element) {
+		panel.Padding(4).Radius(6).Background(hexColor("201f29")).Border(1, hexColor("266294")).TextColor(hexColor("c2c2c2"))
+		for _, option := range options {
+			item := selector.Item(option.tag).Label(option.title).Padding(6, 10).Radius(4)
+			if item.Highlighted() {
+				item.Background(hexColor("266294")).TextColor(hexColor("eeeeee"))
+			}
+			item.Children(func() { kit.Text(c, option.title).FontSize(14).IgnoreInput(true) })
+		}
+	})
+	// Select input is applied after its items exist in this build pass.
+	if selector.Trigger.Changed() && a.onChangeLanguage != nil {
+		a.onChangeLanguage(a.language)
+	}
+}
+
 func (a *App) settingsRow(c *kit.Context, label string, value func()) {
-	kit.Row(c.Key(label)).FillWidth().AlignItems(kit.Start).Children(func() {
-		kit.Text(c, label).Width(100).Shrink(0).FontSize(14).TextColor(hexColor("969696")).Margin(2, 0, 0)
+	key := label
+	fontSize := float32(14)
+	if translated := locale.T(label); translated != label {
+		label, fontSize = translated, 13
+	}
+	kit.Row(c.Key(key)).FillWidth().AlignItems(kit.Start).Children(func() {
+		kit.Text(c, label).Width(100).Shrink(0).FontSize(fontSize).TextColor(hexColor("969696")).Margin(2, 0, 0)
 		kit.Box(c).Grow(1).MinWidth(0).Children(value)
 	})
 }
@@ -108,7 +162,7 @@ func settingsSwitch(c *kit.Context, label string, value *bool, disabled bool) ki
 	if *value {
 		color, left = hexColor("2d8cf0"), 20
 	}
-	switcher := kit.SwitchBase(c, value).Label(label).Size(40, 22).Radius(11).Background(color).Disabled(disabled)
+	switcher := kit.SwitchBase(c, value).Label(locale.T(label)).Size(40, 22).Radius(11).Background(color).Disabled(disabled)
 	if disabled {
 		switcher.Opacity(.5)
 	}
@@ -120,6 +174,7 @@ func settingsSwitch(c *kit.Context, label string, value *bool, disabled bool) ki
 }
 
 func settingsButton(c *kit.Context, title string) kit.Element {
+	title = locale.T(title)
 	button := kit.ButtonBase(c).Label(title).Padding(6, 16).Height(34).Radius(6).Border(1, hexColor("eeeeee")).Background(kit.Transparent).TextColor(hexColor("c2c2c2"))
 	if button.Hovered() {
 		button.Border(1, hexColor("4d98e7")).TextColor(hexColor("4d98e7"))
@@ -137,7 +192,7 @@ func (a *App) chooseDownloadDirectory() {
 		return
 	}
 	if a.chooseDirectory == nil {
-		a.preferences.ReportError(errors.New("目录选择器尚未就绪"))
+		a.preferences.ReportError(errors.New(locale.T("目录选择器尚未就绪")))
 		return
 	}
 	a.choosingDirectory = true

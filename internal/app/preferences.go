@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/MaLuns/wallhaven-electron/internal/domain"
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
 	"github.com/MaLuns/wallhaven-electron/internal/ports"
 )
 
@@ -59,7 +60,7 @@ func (p *Preferences) Load() {
 		return
 	}
 	if p.options.Store == nil || p.options.Dispatch == nil {
-		p.state.Error = "设置服务尚未就绪"
+		p.state.Error = locale.T("设置服务尚未就绪")
 		return
 	}
 	p.state.Loading, p.state.Error = true, ""
@@ -78,7 +79,7 @@ func (p *Preferences) Load() {
 			}
 			p.state.Loading = false
 			if err != nil {
-				p.state.Error = "加载设置失败：" + displayError(err)
+				p.state.Error = locale.T("加载设置失败：") + displayError(err)
 				return
 			}
 			p.state.Values, p.state.Ready = values, true
@@ -101,7 +102,7 @@ func (p *Preferences) RefreshLogin() {
 			}
 			p.state.Refreshing = false
 			if err != nil {
-				p.state.Error = "读取开机启动状态失败：" + displayError(err)
+				p.state.Error = locale.T("读取开机启动状态失败：") + displayError(err)
 				return
 			}
 			p.state.Values.OpenAtLogin = enabled
@@ -138,7 +139,7 @@ func (p *Preferences) save(next domain.Preferences) {
 		return
 	}
 	if !p.state.Ready {
-		p.state.Error = "设置尚未载入，请重试"
+		p.state.Error = locale.T("设置尚未载入，请重试")
 		return
 	}
 	if err := next.Validate(); err != nil {
@@ -160,7 +161,7 @@ func (p *Preferences) save(next domain.Preferences) {
 			p.state.Saving = false
 			p.state.Values = values
 			if err != nil {
-				p.state.Error = "保存设置失败：" + displayError(err)
+				p.state.Error = locale.T("保存设置失败：") + displayError(err)
 				return
 			}
 			p.changed()
@@ -171,7 +172,7 @@ func (p *Preferences) save(next domain.Preferences) {
 func savePreferences(ctx context.Context, options PreferencesOptions, previous, next domain.Preferences) (domain.Preferences, error) {
 	if next.DownloadPath != previous.DownloadPath {
 		if options.Directories == nil {
-			return previous, errors.New("下载目录服务尚未就绪")
+			return previous, errors.New(locale.T("下载目录服务尚未就绪"))
 		}
 		if err := options.Directories.Validate(ctx, next.DownloadPath); err != nil {
 			return previous, err
@@ -180,19 +181,19 @@ func savePreferences(ctx context.Context, options PreferencesOptions, previous, 
 	loginChanged := next.OpenAtLogin != previous.OpenAtLogin
 	if loginChanged {
 		if options.Login == nil {
-			return previous, errors.New("当前平台不支持开机启动设置")
+			return previous, errors.New(locale.T("当前平台不支持开机启动设置"))
 		}
 		if err := options.Login.SetEnabled(ctx, next.OpenAtLogin); err != nil {
 			// A platform error may still have changed its state (e.g. approval).
 			if actual, readErr := options.Login.Enabled(ctx); readErr == nil {
 				previous.OpenAtLogin = actual
 			}
-			return previous, fmt.Errorf("设置开机启动失败：%w", err)
+			return previous, fmt.Errorf(locale.T("设置开机启动失败：%w"), err)
 		}
 		actual, err := options.Login.Enabled(ctx)
 		if err != nil || actual != next.OpenAtLogin {
 			if err == nil {
-				err = errors.New("系统尚未应用开机启动设置，请检查系统的登录项权限")
+				err = errors.New(locale.T("系统尚未应用开机启动设置，请检查系统的登录项权限"))
 			}
 			return rollbackLogin(options, previous, err)
 		}
@@ -211,7 +212,7 @@ func rollbackLogin(options PreferencesOptions, previous domain.Preferences, caus
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := options.Login.SetEnabled(ctx, previous.OpenAtLogin); err != nil {
-		cause = fmt.Errorf("%w；恢复开机启动状态失败：%v", cause, err)
+		cause = fmt.Errorf(locale.T("%w；恢复开机启动状态失败：%v"), cause, err)
 	}
 	if actual, err := options.Login.Enabled(ctx); err == nil {
 		previous.OpenAtLogin = actual
@@ -239,7 +240,7 @@ func (p *Preferences) OpenDownloadDirectory() {
 			}
 			p.state.Opening = false
 			if err != nil {
-				p.state.Error = "打开下载目录失败：" + displayError(err)
+				p.state.Error = locale.T("打开下载目录失败：") + displayError(err)
 			}
 		})
 	}()

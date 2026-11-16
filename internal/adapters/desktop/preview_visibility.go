@@ -4,6 +4,8 @@ import (
 	"errors"
 	"strings"
 	"time"
+
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
 )
 
 // Implementations retain the identity of an application, rather than looking
@@ -30,7 +32,7 @@ type previewVisibility struct {
 	completion func(error)
 }
 
-var errPreviewInterrupted = errors.New("桌面预览已取消")
+var errPreviewInterrupted = errors.New(locale.T("桌面预览已取消"))
 
 func (s *previewVisibility) interrupt() {
 	s.request++
@@ -47,7 +49,7 @@ func (s *previewVisibility) interrupt() {
 func (s *previewVisibility) hide(complete func(error)) {
 	s.interrupt()
 	if len(s.changed) != 0 {
-		complete(errors.New("请先恢复上次桌面预览隐藏的应用"))
+		complete(errors.New(locale.T("请先恢复上次桌面预览隐藏的应用")))
 		return
 	}
 	applications, err := s.snapshot()
@@ -115,11 +117,11 @@ func (s *previewVisibility) wait(hidden bool, complete func(error)) {
 		}
 		s.completion, s.stopTimer = nil, nil
 		if len(pending) != 0 {
-			action := "隐藏"
+			action := locale.T("隐藏")
 			if !hidden {
-				action = "恢复"
+				action = locale.T("恢复")
 			}
-			complete(errors.New("未能" + action + "应用：" + strings.Join(pending, "、") + "，请重试"))
+			complete(errors.New(locale.T("未能") + action + locale.T("应用：") + strings.Join(pending, "、") + locale.T("，请重试")))
 		} else {
 			complete(nil)
 		}

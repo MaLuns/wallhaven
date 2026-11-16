@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
 )
 
 // SearchQuery contains only public filters, never authentication credentials.
@@ -57,41 +59,41 @@ var (
 func (q SearchQuery) Validate() error {
 	q = q.Normalize()
 	if !searchMask.MatchString(q.Categories) || q.Categories == "000" {
-		return errors.New("请选择至少一种有效分类")
+		return errors.New(locale.T("请选择至少一种有效分类"))
 	}
 	if !searchMask.MatchString(q.Purity) {
-		return errors.New("内容等级无效")
+		return errors.New(locale.T("内容等级无效"))
 	}
 	if !slices.Contains([]string{"date_added", "relevance", "hot", "random", "views", "favorites", "toplist"}, q.Sorting) {
-		return errors.New("排序方式无效")
+		return errors.New(locale.T("排序方式无效"))
 	}
 	if q.Order != "asc" && q.Order != "desc" {
-		return errors.New("排序方向无效")
+		return errors.New(locale.T("排序方向无效"))
 	}
 	if q.Sorting == "toplist" && !slices.Contains([]string{"1d", "3d", "1w", "1M", "3M", "6M", "1y"}, q.TopRange) {
-		return errors.New("排行榜时间范围无效")
+		return errors.New(locale.T("排行榜时间范围无效"))
 	}
 	if q.AtLeast != "" && !searchSize.MatchString(q.AtLeast) {
-		return errors.New("最小分辨率格式应为宽x高，例如 1920x1080")
+		return errors.New(locale.T("最小分辨率格式应为宽x高，例如 1920x1080"))
 	}
 	if q.AtLeast != "" && len(q.Resolutions) != 0 {
-		return errors.New("至少分辨率与精确分辨率不能同时使用")
+		return errors.New(locale.T("至少分辨率与精确分辨率不能同时使用"))
 	}
 	for _, size := range q.Resolutions {
 		if !searchSize.MatchString(size) {
-			return errors.New("精确分辨率格式应为宽x高，例如 1920x1080")
+			return errors.New(locale.T("精确分辨率格式应为宽x高，例如 1920x1080"))
 		}
 	}
 	for _, ratio := range q.Ratios {
 		if ratio != "landscape" && ratio != "portrait" && !searchSize.MatchString(ratio) {
-			return errors.New("宽高比格式应为宽x高，例如 16x9")
+			return errors.New(locale.T("宽高比格式应为宽x高，例如 16x9"))
 		}
 	}
 	if q.Color != "" && !searchColor.MatchString(q.Color) {
-		return errors.New("颜色应为六位十六进制值")
+		return errors.New(locale.T("颜色应为六位十六进制值"))
 	}
 	if q.Sorting == "random" && q.Seed != "" && !searchSeed.MatchString(q.Seed) {
-		return errors.New("随机种子应为六位字母或数字")
+		return errors.New(locale.T("随机种子应为六位字母或数字"))
 	}
 	return nil
 }

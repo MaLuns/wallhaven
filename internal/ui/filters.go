@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/MaLuns/wallhaven-electron/internal/domain"
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
 	kit "github.com/egoist/mygo/ui"
 )
 
@@ -105,15 +106,15 @@ func (a *App) searchControls(c *kit.Context) {
 		panelHeight = advancedFilterPanelHeight(windowWidth, windowHeight, a.filters.sorting == "排行榜")
 		backgroundFade = 0
 	}
-	kit.Box(c.Key("search-placeholder")).Label("搜索筛选区").FillWidth().Height(compactSearchPanelHeight).Shrink(0).ZIndex(20).Children(func() {
-		background := kit.Box(c.Key("search-frost")).Label("搜索渐变背景").Absolute().Left(searchPanelSideInset).Right(searchPanelSideInset).Top(0).
+	kit.Box(c.Key("search-placeholder")).Label(locale.T("搜索筛选区")).FillWidth().Height(compactSearchPanelHeight).Shrink(0).ZIndex(20).Children(func() {
+		background := kit.Box(c.Key("search-frost")).Label(locale.T("搜索渐变背景")).Absolute().Left(searchPanelSideInset).Right(searchPanelSideInset).Top(0).
 			Height(panelHeight).Radius(searchPanelRadius).Clip().IgnoreInput(true).Draw(frostedGradientBackground(p.Canvas, searchPanelRadius, searchPanelMinOpacity)).
 			AnimatePose(kit.Pose{Fade: backgroundFade}, kit.Animation{Duration: 180 * time.Millisecond}).
 			Transition(kit.ElementTransition{Height: true, Duration: 180 * time.Millisecond, Ease: kit.EaseOut})
 		if a.advanced {
 			background.Shadow(5, 7, 7, 0, kit.RGBA(0, 0, 0, .28))
 		}
-		panel := kit.Column(c.Key("search-panel")).Label("搜索筛选面板").Absolute().Left(searchPanelSideInset).Right(searchPanelSideInset).Top(0).
+		panel := kit.Column(c.Key("search-panel")).Label(locale.T("搜索筛选面板")).Absolute().Left(searchPanelSideInset).Right(searchPanelSideInset).Top(0).
 			Height(panelHeight).Radius(searchPanelRadius).Padding(14).Gap(10).Clip().
 			Transition(kit.ElementTransition{Height: true, Duration: 180 * time.Millisecond, Ease: kit.EaseOut})
 		panel.Children(func() {
@@ -128,7 +129,7 @@ func (a *App) searchControls(c *kit.Context) {
 					})
 				})
 				kit.Row(c.Key("search-entry")).Width(min(360, max(236, windowWidth*.24))).Shrink(0).Height(28).Children(func() {
-					kit.TextInput(c.Key("keywords"), &a.filters.keyword).Label("壁纸关键词").Placeholder("搜索...").
+					kit.TextInput(c.Key("keywords"), &a.filters.keyword).Label(locale.T("壁纸关键词")).Placeholder(locale.T("搜索...")).
 						Grow(1).MinWidth(0).Height(28).Background(kit.Transparent).Border(1, p.Border).
 						Radius(4, 0, 0, 4).Padding(0, 7).FontSize(12).TextColor(p.Text).OnSubmit(a.submitSearch)
 					legacyIconButton(c, "search-submit", "search", "搜索壁纸").Size(30, 28).
@@ -144,7 +145,7 @@ func (a *App) searchControls(c *kit.Context) {
 			if !a.advanced {
 				return
 			}
-			kit.Scroll(c.Key("advanced-filters")).Label("高级筛选面板").Grow(1).MinHeight(0).FillWidth().Children(func() {
+			kit.Scroll(c.Key("advanced-filters")).Label(locale.T("高级筛选面板")).Grow(1).MinHeight(0).FillWidth().Children(func() {
 				kit.Column(c).FillWidth().Gap(filterGroupGap).Children(func() { a.legacyFilterRows(c) })
 			})
 		})
@@ -197,15 +198,19 @@ func advancedFilterPanelHeight(windowWidth, windowHeight float32, topRange bool)
 }
 
 func filterLabel(c *kit.Context, label string) {
+	fontSize := float32(13)
+	if translated := locale.T(label); translated != label {
+		label, fontSize = translated, 12
+	}
 	color := hexColor("797979")
 	if c.Theme().Dark {
 		color = hexColor("e0e0e0")
 	}
 	// A text element with an explicit 30px height keeps its glyphs at the
 	// top. Center the natural text line inside the same height as the chips.
-	kit.Row(c.Key("label")).Label("筛选标签 "+label).Width(filterLabelWidth).Height(filterControlHeight).Shrink(0).Margin(0, filterLabelGap, 0, 0).
+	kit.Row(c.Key("label")).Label(locale.T("筛选标签 ")+label).Width(filterLabelWidth).Height(filterControlHeight).Shrink(0).Margin(0, filterLabelGap, 0, 0).
 		Justify(kit.End).AlignItems(kit.Center).Children(func() {
-		kit.Text(c, label).FontSize(13).Bold().TextColor(color).SingleLine()
+		kit.Text(c, label).FontSize(fontSize).Bold().TextColor(color).SingleLine()
 	})
 }
 
@@ -217,6 +222,7 @@ func filterRow(c *kit.Context, key, label string, build func()) {
 }
 
 func filterChip(c *kit.Context, key, display, label string, selected bool, width float32, run func()) {
+	display, label = locale.T(display), locale.T(label)
 	p := legacyPalette(c)
 	button := kit.ButtonBase(c.Key(key)).Label(label).Tooltip(label).Checked(selected).Width(width).MinWidth(0).Height(filterControlHeight).Shrink(0).Padding(0).Radius(5).
 		Background(kit.Transparent).Border(1, kit.Transparent).TextColor(p.Text).
@@ -316,7 +322,7 @@ func (a *App) legacyFilterRows(c *kit.Context) {
 	// secondary controls at the end without replacing the original presets.
 	filterRow(c, "custom", "自定义", func() {
 		kit.Row(c).Gap(12).AlignItems(kit.Center).Children(func() {
-			kit.TextInput(c.Key("custom-resolution"), &a.filters.custom).Label("自定义分辨率").Placeholder("1920x1080").Width(260).Height(30).
+			kit.TextInput(c.Key("custom-resolution"), &a.filters.custom).Label(locale.T("自定义分辨率")).Placeholder("1920x1080").Width(260).Height(30).
 				Background(kit.Transparent).Border(1, legacyPalette(c).Border).Radius(5).Padding(0, 8).FontSize(12).TextColor(legacyPalette(c).Text)
 			filterChip(c, "reset", "重置", "重置筛选", false, 64, func() { a.filters = defaultFilters(); a.submitSearch() })
 		})
@@ -324,9 +330,9 @@ func (a *App) legacyFilterRows(c *kit.Context) {
 }
 
 func (a *App) filterSwatch(c *kit.Context, color string) {
-	label := "颜色 #" + color
+	label := locale.T("颜色 #") + color
 	if color == "" {
-		label = "不限颜色"
+		label = locale.T("不限颜色")
 	}
 	fill := hexColor(color)
 	if color == "" {

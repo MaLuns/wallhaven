@@ -230,3 +230,138 @@ func TestListPageFailureStopsAnimationAndRetriesSamePage(t *testing.T) {
 		t.Fatal("successful retry did not append the original failed page")
 	}
 }
+
+func scrollListLeaving(t *testing.T, h *gatedListHarness, remaining float32) float32 {
+	t.Helper()
+	bounds, ok := h.tester.Find("搜索结果")
+	if !ok {
+		t.Fatal("missing wallpaper list")
+	}
+	target := h.screen.results.MaxY - remaining
+	if target <= 0 {
+		t.Fatalf("fixture has no scroll position leaving %f pixels (maxY=%f)", remaining, h.screen.results.MaxY)
+	}
+	h.tester.Scroll(bounds.X+bounds.W/2, bounds.Y+bounds.H/2, 0, target-h.screen.results.Y)
+	h.tester.Frame()
+	return h.screen.results.MaxY - h.screen.results.Y
+}
+
+func TestListPreloadsBeforeBottomWithViewportReserve(t *testing.T) {
+	for _, test := range []struct {
+		height                    int
+		outsideReserve, insideGap float32
+	}{
+		// A short viewport retains at least 1200px; a taller one reserves
+		// two whole visible screens. Both request before the old 1.5-screen
+		// (minimum 1000px) threshold would have been reached.
+		{540, 1300, 1100},
+		{1000, 1750, 1500},
+	} {
+		t.Run(fmt.Sprint(test.height), func(t *testing.T) {
+			h := newGatedListHarness(t)
+			h.tester.SetSize(800, test.height)
+			first := h.nextPage(t)
+			first.reply <- gatedListReply{result: listPageResult(1, 3)}
+			h.applyReply(t)
+			for range 3 {
+				h.tester.Frame()
+			}
+			if h.screen.results.Y != 0 || h.controller.SearchState().Loading || len(h.source.requests) != 0 {
+				t.Fatal("a list at its initial top started automatic pagination")
+			}
+			if remaining := scrollListLeaving(t, h, test.outsideReserve); remaining < test.outsideReserve-1 {
+				t.Fatalf("scroll jumped past the outside-reserve position: remaining=%f", remaining)
+			}
+			if h.controller.SearchState().Loading || len(h.source.requests) != 0 {
+				t.Fatal("list requested another page while outside the preload reserve")
+			}
+			remaining := scrollListLeaving(t, h, test.insideGap)
+			second := h.nextPage(t)
+			if second.page != 2 || remaining < test.insideGap-1 || remaining <= 1000 {
+				t.Fatalf("page %d started too close to the bottom: remaining=%f", second.page, remaining)
+			}
+			position := h.screen.results.Y
+			for range 5 {
+				h.tester.Frame()
+			}
+			if len(h.source.requests) != 0 {
+				t.Fatal("rebuilding an early-loading list duplicated the next-page request")
+			}
+			second.reply <- gatedListReply{result: listPageResult(2, 3)}
+			h.applyReply(t)
+			if h.screen.results.Y != position {
+				t.Fatalf("preloaded page moved the reading position: %f -> %f", position, h.screen.results.Y)
+			}
+			if h.controller.SearchState().Loading || len(h.source.requests) != 0 {
+				t.Fatal("appending the preloaded page fetched another page beyond the reserve")
+			}
+		})
+	}
+}
+
+func TestListPreloadResetsWithNewSearch(t *testing.T) {
+	h := newGatedListHarness(t)
+	h.tester.SetSize(800, 540)
+	first := h.nextPage(t)
+	first.reply <- gatedListReply{result: listPageResult(1, 3)}
+	h.applyReply(t)
+	scrollListLeaving(t, h, 1100)
+	oldPage := h.nextPage(t)
+	if oldPage.page != 2 {
+		t.Fatalf("first query preloaded page %d, want 2", oldPage.page)
+	}
+	h.screen.filters.keyword = "new landscape"
+	h.screen.submitSearch()
+	h.tester.Frame()
+	fresh := h.nextPage(t)
+	if fresh.page != 1 || oldPage.ctx.Err() == nil {
+		t.Fatal("new search did not cancel the old page and restart at page one")
+	}
+	fresh.reply <- gatedListReply{result: listPageResult(1, 3)}
+	// The canceled worker may still dispatch its ignored completion before
+	// the replacement query finishes. Drain until that query has settled.
+	for h.controller.SearchState().Loading {
+		h.applyReply(t)
+	}
+	if h.screen.results.Y != 0 || h.controller.SearchState().Query.Query != "new landscape" || h.controller.SearchState().Loading {
+		t.Fatal("new search reused the old scroll position or automatic request")
+	}
+	scrollListLeaving(t, h, 1100)
+	second := h.nextPage(t)
+	if second.page != 2 {
+		t.Fatalf("new query skipped its preload because of the old query: page %d", second.page)
+	}
+}
+
+func TestListWarmsTwoScreensAheadWithoutMountingExtraCards(t *testing.T) {
+	h := newGatedListHarness(t)
+	h.tester.SetSize(800, 540)
+	images := &aspectThumbnails{bitmaps: map[string]*kit.Bitmap{}, visible: map[string]bool{}, prefetched: map[string]bool{}}
+	h.screen.images = images
+	result := domain.SearchResult{CurrentPage: 1, LastPage: 1, Total: 240}
+	for index := range result.Total {
+		result.Wallpapers = append(result.Wallpapers, domain.Wallpaper{
+			ID: fmt.Sprintf("warm-%d", index), Width: 1600, Height: 900,
+			Thumbnail: fmt.Sprintf("small/%d", index), OriginalThumbnail: fmt.Sprintf("original/%d", index),
+		})
+	}
+	first := h.nextPage(t)
+	first.reply <- gatedListReply{result: result}
+	h.applyReply(t)
+	// At this size image 8 starts at 915px. It is beyond the old 2H
+	// mounting range (764px), within two screens below the bottom (1146px).
+	if !images.prefetched["original/8"] || images.visible["original/8"] {
+		t.Fatalf("extra-band thumbnail was not warmed exclusively through Prefetch: prefetched=%v visible=%v", images.prefetched["original/8"], images.visible["original/8"])
+	}
+	if _, mounted := h.tester.Find("查看壁纸 warm-8"); mounted {
+		t.Fatal("warming the extra band mounted an offscreen card")
+	}
+	if !images.visible["original/0"] {
+		t.Fatal("warming ahead replaced the visible image request")
+	}
+	for _, url := range []string{"original/20", "original/239", "small/8"} {
+		if images.prefetched[url] || images.visible[url] {
+			t.Fatalf("bounded warming requested a distant or cropped thumbnail: %q", url)
+		}
+	}
+}

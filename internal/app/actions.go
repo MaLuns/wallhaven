@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/MaLuns/wallhaven-electron/internal/domain"
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
 	"github.com/MaLuns/wallhaven-electron/internal/ports"
 )
 
@@ -111,7 +112,7 @@ func (a *Actions) RetryFavorites() {
 func (a *Actions) loadFavorites() {
 	a.libraryRevision++
 	if a.options.Favorites == nil || a.options.Dispatch == nil {
-		a.library.Error = "收藏存储服务尚未就绪"
+		a.library.Error = locale.T("收藏存储服务尚未就绪")
 		return
 	}
 	a.libraryGeneration++
@@ -128,7 +129,7 @@ func (a *Actions) loadFavorites() {
 			a.libraryRevision++
 			a.library.Loading = false
 			if err != nil {
-				a.library.Error = "读取收藏失败：" + displayError(err)
+				a.library.Error = locale.T("读取收藏失败：") + displayError(err)
 				return
 			}
 			a.library.Ready, a.library.Error = true, ""
@@ -150,14 +151,14 @@ func (a *Actions) ToggleFavorite(wallpaper domain.Wallpaper) {
 		return
 	}
 	if !a.library.Ready || a.options.Favorites == nil || a.options.Dispatch == nil {
-		a.notify("收藏尚未载入，请在我的页面重试", true)
+		a.notify(locale.T("收藏尚未载入，请在我的页面重试"), true)
 		return
 	}
 	if a.library.Saving {
 		return
 	}
 	if wallpaper.ID == "" {
-		a.notify("壁纸编号无效", true)
+		a.notify(locale.T("壁纸编号无效"), true)
 		return
 	}
 	removing := a.IsFavorite(wallpaper.ID)
@@ -186,15 +187,15 @@ func (a *Actions) ToggleFavorite(wallpaper domain.Wallpaper) {
 			a.libraryRevision++
 			a.library.Saving = false
 			if err != nil {
-				a.library.Error = "保存收藏失败：" + displayError(err)
+				a.library.Error = locale.T("保存收藏失败：") + displayError(err)
 				a.notify(a.library.Error, true)
 				return
 			}
 			a.library.Wallpapers = next
 			a.indexFavorites()
-			message := "已收藏壁纸"
+			message := locale.T("已收藏壁纸")
 			if removing {
-				message = "已取消收藏"
+				message = locale.T("已取消收藏")
 			}
 			a.notify(message, false)
 		})

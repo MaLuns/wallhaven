@@ -4,6 +4,7 @@ import (
 	"embed"
 	"sync"
 
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
 	kit "github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/shader"
 )
@@ -97,6 +98,7 @@ func frostedGradientBackground(tint kit.Color, radius, minOpacity float32) func(
 }
 
 func legacyIconButton(c *kit.Context, key, name, label string, iconSize ...float32) kit.Element {
+	label = locale.T(label)
 	size := float32(18)
 	if len(iconSize) > 0 {
 		size = iconSize[0]
@@ -110,6 +112,7 @@ func legacyIconButton(c *kit.Context, key, name, label string, iconSize ...float
 }
 
 func legacyChip(c *kit.Context, key, label string, selected bool) kit.Element {
+	label = locale.T(label)
 	p := legacyPalette(c)
 	b := kit.ButtonBase(c.Key(key)).Label(label).Tooltip(label).MinWidth(60).Height(30).Padding(0).Background(kit.Transparent)
 	if selected {

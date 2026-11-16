@@ -17,11 +17,12 @@ import (
 	"github.com/MaLuns/wallhaven-electron/internal/adapters/wallhaven"
 	"github.com/MaLuns/wallhaven-electron/internal/app"
 	"github.com/MaLuns/wallhaven-electron/internal/domain"
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
 	nativeui "github.com/MaLuns/wallhaven-electron/internal/ui"
 )
 
 func main() {
-	mygo.Use(nativeupdater.New(updater.Options{Language: "zh-Hans"}))
+	mygo.Use(nativeupdater.New(updater.Options{}))
 	var window *mygo.Window
 	var preview *app.DesktopPreview
 	activationPending := false
@@ -61,6 +62,12 @@ func main() {
 				previewHost.Invalidate()
 			}
 		}
+		offLocaleChanged := mygo.App.OnLocaleChanged(func(string) {
+			if settingsWindow != nil {
+				settingsWindow.SetTitle(locale.T("设置"))
+			}
+			redraw()
+		})
 		dispatch := func(fn func()) {
 			window.Update(func() {
 				fn()
@@ -136,7 +143,7 @@ func main() {
 				return
 			}
 			settingsWindow = mygo.NewWindow(mygo.WindowOptions{
-				Title: "设置", Width: 450, Height: 340, MinWidth: 450, MinHeight: 340, MaxWidth: 450, MaxHeight: 340,
+				Title: locale.T("设置"), Width: 450, Height: 340, MinWidth: 450, MinHeight: 340, MaxWidth: 450, MaxHeight: 340,
 				Frameless: true, DisableResize: true, DisableMaximize: true, DisableFullScreen: true,
 				CornerRadius: nativeui.SettingsCornerRadius(), Transparent: nativeui.SettingsCornerRadius() > 0,
 				Content: kit.View(screen.SettingsView),
@@ -151,6 +158,7 @@ func main() {
 			FullImages: images.NewDetailLoader(images.DetailOptions{Originals: originals}), Dispatch: dispatch, Appearance: "dark",
 			OnMinimize: func() { window.Minimize() }, OnClose: func() { window.Close() },
 			Preferences: preferences, OnOpenSettings: openSettings,
+			ChosenLanguage: mygo.App.ChosenLocale, OnChangeLanguage: mygo.App.SetLocale,
 			DesktopPreview: preview,
 			OnCloseSettings: func() {
 				if settingsWindow != nil {
@@ -163,7 +171,7 @@ func main() {
 					parent = window
 				}
 				go func() {
-					paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{Parent: parent, Title: "选择下载目录", DefaultPath: current, ButtonLabel: "选择目录", Directory: true, CreateDirectories: true})
+					paths, err := mygo.Dialog.Open(downloadDirectoryDialogOptions(parent, current))
 					path := ""
 					if len(paths) > 0 {
 						path = paths[0]
@@ -198,6 +206,7 @@ func main() {
 				return
 			}
 			servicesClosed = true
+			offLocaleChanged()
 			preview.Close()
 			screen.Close()
 			preferences.Close()
@@ -230,5 +239,14 @@ func main() {
 	})
 	if err := mygo.App.Run(); err != nil {
 		log.Fatal(err)
+	}
+}
+
+// Leave native button labels to the OS so the folder picker follows the user's
+// default language, including its confirm, cancel and new-folder controls.
+func downloadDirectoryDialogOptions(parent *mygo.Window, current string) mygo.OpenDialogOptions {
+	return mygo.OpenDialogOptions{
+		Parent: parent, Title: locale.T("选择下载目录"), DefaultPath: current,
+		Directory: true, CreateDirectories: true,
 	}
 }

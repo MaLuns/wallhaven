@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/MaLuns/wallhaven-electron/internal/domain"
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
 	"github.com/MaLuns/wallhaven-electron/internal/ports"
 )
 
@@ -28,7 +29,7 @@ func (a *Actions) loadTransfers() {
 		return
 	}
 	if a.options.Dispatch == nil {
-		a.history.Error = "下载历史服务尚未就绪"
+		a.history.Error = locale.T("下载历史服务尚未就绪")
 		return
 	}
 	a.history.Loading, a.history.Error = true, ""
@@ -41,7 +42,7 @@ func (a *Actions) loadTransfers() {
 			}
 			a.history.Loading = false
 			if err != nil {
-				a.history.Error = "读取下载历史失败：" + displayError(err)
+				a.history.Error = locale.T("读取下载历史失败：") + displayError(err)
 				return
 			}
 			a.jobs = map[transferKey]*transferJob{}
@@ -96,7 +97,7 @@ func (a *Actions) persistTransfers() {
 			}
 			a.history.Saving = false
 			if err != nil {
-				a.history.Error = "保存下载历史失败：" + displayError(err)
+				a.history.Error = locale.T("保存下载历史失败：") + displayError(err)
 				a.notify(a.history.Error, true)
 			} else {
 				a.history.Error = ""
@@ -134,7 +135,7 @@ func (a *Actions) closeTransfers() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := a.options.Transfers.Save(ctx, a.Transfers()); err != nil {
-			a.history.Error = "保存下载历史失败：" + displayError(err)
+			a.history.Error = locale.T("保存下载历史失败：") + displayError(err)
 		}
 	}
 }
@@ -171,7 +172,7 @@ func (a *Actions) PauseTransfer(kind domain.TransferKind, id string) {
 		return
 	}
 	if _, ok := a.options.Files.(ports.ResumableOriginalFiles); !ok {
-		a.notify("当前下载服务不支持暂停", true)
+		a.notify(locale.T("当前下载服务不支持暂停"), true)
 		return
 	}
 	job.stop = "pause"
@@ -250,7 +251,7 @@ func (a *Actions) discardTransfer(key transferKey, job *transferJob, remove bool
 			}
 			job.state.Stopping = false
 			if err != nil {
-				message := "清理下载记录失败：" + displayError(err)
+				message := locale.T("清理下载记录失败：") + displayError(err)
 				if !remove {
 					job.state.Error = message
 				}
@@ -284,19 +285,19 @@ func (a *Actions) startTransfer(kind domain.TransferKind, wallpaper domain.Wallp
 		return
 	}
 	if !a.history.Ready {
-		a.notify("下载历史尚未载入，请在下载页面重试", true)
+		a.notify(locale.T("下载历史尚未载入，请在下载页面重试"), true)
 		return
 	}
 	if wallpaper.ID == "" {
-		a.notify("壁纸编号无效", true)
+		a.notify(locale.T("壁纸编号无效"), true)
 		return
 	}
 	if a.options.Files == nil || a.options.Dispatch == nil {
-		a.notify("原图下载服务尚未就绪", true)
+		a.notify(locale.T("原图下载服务尚未就绪"), true)
 		return
 	}
 	if kind == domain.WallpaperTransfer && a.options.Desktop == nil {
-		a.notify("当前平台尚不支持设置壁纸", true)
+		a.notify(locale.T("当前平台尚不支持设置壁纸"), true)
 		return
 	}
 	key := transferKey{kind, wallpaper.ID}
@@ -312,7 +313,7 @@ func (a *Actions) startTransfer(kind domain.TransferKind, wallpaper domain.Wallp
 		directory = job.state.Directory
 	}
 	if directory == "" {
-		a.notify("保存目录不可用", true)
+		a.notify(locale.T("保存目录不可用"), true)
 		return
 	}
 	if job == nil {
@@ -366,7 +367,7 @@ func (a *Actions) startTransfer(kind domain.TransferKind, wallpaper domain.Wallp
 					job.state.Canceled = true
 					job.state.Error = ""
 					if discardError != nil {
-						job.state.Error = "清理临时文件失败：" + displayError(discardError)
+						job.state.Error = locale.T("清理临时文件失败：") + displayError(discardError)
 						a.notify(job.state.Error, true)
 					}
 				} else if err != nil {
@@ -377,9 +378,9 @@ func (a *Actions) startTransfer(kind domain.TransferKind, wallpaper domain.Wallp
 					job.state.Path = path
 					job.state.Completed = true
 					job.state.CompletedAt = time.Now().UTC()
-					message := "已下载到：" + path
+					message := locale.T("已下载到：") + path
 					if kind == domain.WallpaperTransfer {
-						message = "已设置为桌面壁纸"
+						message = locale.T("已设置为桌面壁纸")
 					}
 					a.notify(message, false)
 				}
@@ -404,13 +405,13 @@ func (a *Actions) startTransfer(kind domain.TransferKind, wallpaper domain.Wallp
 		})
 		if selected.Path == "" {
 			if details == nil {
-				err = errors.New("暂未获取到原图地址，请打开详情后重试")
+				err = errors.New(locale.T("暂未获取到原图地址，请打开详情后重试"))
 			} else {
 				var detail domain.WallpaperDetail
 				detail, err = details.Detail(ctx, wallpaper.ID)
 				if err == nil {
 					if detail.Wallpaper.ID != wallpaper.ID {
-						err = errors.New("壁纸详情与当前选择不匹配")
+						err = errors.New(locale.T("壁纸详情与当前选择不匹配"))
 					} else {
 						selected = mergeWallpaper(wallpaper, detail.Wallpaper)
 					}
@@ -453,7 +454,7 @@ func (a *Actions) startTransfer(kind domain.TransferKind, wallpaper domain.Wallp
 			}
 		}
 		if err == nil && path == "" {
-			err = errors.New("下载未返回有效文件")
+			err = errors.New(locale.T("下载未返回有效文件"))
 		}
 		if err == nil && kind == domain.WallpaperTransfer {
 			if ctx.Err() != nil {

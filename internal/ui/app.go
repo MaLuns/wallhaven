@@ -8,6 +8,7 @@ import (
 
 	"github.com/MaLuns/wallhaven-electron/internal/app"
 	"github.com/MaLuns/wallhaven-electron/internal/domain"
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
 )
 
 type App struct {
@@ -62,6 +63,9 @@ type App struct {
 	onCloseSettings       func()
 	chooseDirectory       func(string, func(string, error))
 	choosingDirectory     bool
+	chosenLanguage        func() string
+	onChangeLanguage      func(string)
+	language              string
 }
 
 type ThumbnailSource interface {
@@ -83,6 +87,8 @@ type Options struct {
 	OnCloseSettings     func()
 	ChooseDirectory     func(string, func(string, error))
 	DesktopPreview      *app.DesktopPreview
+	ChosenLanguage      func() string
+	OnChangeLanguage    func(string)
 }
 
 func New(controller *app.Controller, options ...Options) *App {
@@ -104,6 +110,8 @@ func New(controller *app.Controller, options ...Options) *App {
 		a.onCloseSettings = options[0].OnCloseSettings
 		a.chooseDirectory = options[0].ChooseDirectory
 		a.desktopPreview = options[0].DesktopPreview
+		a.chosenLanguage = options[0].ChosenLanguage
+		a.onChangeLanguage = options[0].OnChangeLanguage
 	}
 	for _, key := range []string{"date_added", "hot", "favorites", "views"} {
 		a.groupScroll[key] = &kit.ScrollState{}
@@ -145,7 +153,7 @@ func (a *App) View(c *kit.Context) {
 			default:
 				kit.Column(c.Key("pending")).Grow(1).FillWidth().Center().Gap(12).Children(func() {
 					kit.Image(c, legacyBitmaps["empty"]).Size(270, 180).Fit(kit.Contain)
-					kit.Text(c, "功能开发中 ~").FontSize(20).TextColor(p.Muted)
+					kit.Text(c, locale.T("功能开发中 ~")).FontSize(20).TextColor(p.Muted)
 				})
 			}
 		})

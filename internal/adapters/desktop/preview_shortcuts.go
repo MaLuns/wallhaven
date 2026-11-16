@@ -1,5 +1,7 @@
 package desktop
 
+import "github.com/MaLuns/wallhaven-electron/internal/locale"
+
 import "fmt"
 
 // These bindings exist only while previewing. A queued callback from a closed
@@ -27,7 +29,7 @@ func (s *previewShortcuts) start(previous, next, exit func()) error {
 			}
 		}); err != nil {
 			s.stop()
-			return fmt.Errorf("无法启用桌面预览快捷键 %s，请检查按键是否被其他程序占用", binding.key)
+			return fmt.Errorf(locale.T("无法启用桌面预览快捷键 %s，请检查按键是否被其他程序占用"), binding.key)
 		}
 		s.owned = append(s.owned, binding.key)
 	}

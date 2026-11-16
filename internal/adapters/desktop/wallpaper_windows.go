@@ -9,6 +9,8 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/windows"
+
+	"github.com/MaLuns/wallhaven-electron/internal/locale"
 )
 
 var systemParametersInfo = windows.NewLazySystemDLL("user32.dll").NewProc("SystemParametersInfoW")
@@ -22,16 +24,16 @@ func setWindowsWallpaper(ctx context.Context, path string) error {
 	}
 	value, err := windows.UTF16PtrFromString(path)
 	if err != nil {
-		return errors.New("壁纸文件路径无效")
+		return errors.New(locale.T("壁纸文件路径无效"))
 	}
 	if err := systemParametersInfo.Find(); err != nil {
-		return actionError{"系统不提供 Windows 壁纸接口", ErrUnsupported}
+		return actionError{locale.T("系统不提供 Windows 壁纸接口"), ErrUnsupported}
 	}
 	const setDesktopWallpaper, updateProfile, sendChange = 0x0014, 0x0001, 0x0002
 	result, _, _ := systemParametersInfo.Call(setDesktopWallpaper, 0, uintptr(unsafe.Pointer(value)), updateProfile|sendChange)
 	runtime.KeepAlive(value)
 	if result == 0 {
-		return errors.New("Windows 未能应用桌面壁纸，请检查文件格式和系统策略")
+		return errors.New(locale.T("Windows 未能应用桌面壁纸，请检查文件格式和系统策略"))
 	}
 	return nil
 }
