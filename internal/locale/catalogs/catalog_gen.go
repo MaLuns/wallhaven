@@ -5657,3 +5657,13 @@ func Release111SettingsLayout() string { return In(i18n.Locale()).Release111Sett
 func (msgs Messages) Release111SettingsLayout() string {
 	return Catalog.Format(msgs.locale, "release111SettingsLayout", nil)
 }
+
+// Release112CILanguageIsolation says "修复多语言环境下发布检查失败的问题，完善发布前验证。"
+// in the language the app shows.
+func Release112CILanguageIsolation() string { return In(i18n.Locale()).Release112CILanguageIsolation() }
+
+// Release112CILanguageIsolation says "修复多语言环境下发布检查失败的问题，完善发布前验证。"
+// in the language of msgs.
+func (msgs Messages) Release112CILanguageIsolation() string {
+	return Catalog.Format(msgs.locale, "release112CILanguageIsolation", nil)
+}

@@ -519,5 +519,6 @@
   "release111Prefetch": "Improved wallpaper preloading by fetching the next page and thumbnails before scrolling reaches the bottom.",
   "release111DiskCache": "Added persistent thumbnail and original image caches with usage statistics, cleanup, and adjustable size limits.",
   "release111SettingsChild": "Settings on macOS now uses a native child window, opens centered over the main window, and supports dragging and resizing.",
-  "release111SettingsLayout": "Aligned Settings labels, buttons, and cache controls, and improved long folder paths and dropdowns in smaller windows."
+  "release111SettingsLayout": "Aligned Settings labels, buttons, and cache controls, and improved long folder paths and dropdowns in smaller windows.",
+  "release112CILanguageIsolation": "Fixed release checks failing under different language environments and strengthened pre-release validation."
 }
