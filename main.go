@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 
 	"github.com/egoist/mygo"
@@ -189,12 +190,14 @@ func main() {
 			created.OnFocus(screen.RefreshSettings)
 			screen.RefreshSettings()
 		}
+		nativeWindowControls := runtime.GOOS == "darwin"
 		screen = nativeui.New(controller, nativeui.Options{
 			Version: mygo.App.Version(), OnCheckForUpdates: updater.CheckForUpdates,
 			Actions: actions, RevealFile: mygo.Shell.ShowItemInFolder, Images: thumbnails,
 			FullImages: images.NewDetailLoader(images.DetailOptions{Originals: originals}), Dispatch: dispatch, Appearance: "dark",
 			OnMinimize: func() { window.Minimize() }, OnClose: func() { window.Close() },
-			Preferences: preferences, OnOpenSettings: openSettings,
+			NativeWindowControls: nativeWindowControls,
+			Preferences:          preferences, OnOpenSettings: openSettings,
 			ChosenLanguage: mygo.App.ChosenLocale, OnChangeLanguage: mygo.App.SetLocale,
 			DesktopPreview: preview,
 			OnCloseSettings: func() {
@@ -217,16 +220,21 @@ func main() {
 				}()
 			},
 		})
-		window = mygo.NewWindow(mygo.WindowOptions{
+		windowOptions := mygo.WindowOptions{
 			Title:     "MyGO Wallhaven",
 			Width:     1300,
 			Height:    800,
 			MinWidth:  800,
 			MinHeight: 540,
-			Frameless: true,
+			Frameless: !nativeWindowControls,
 			StateKey:  "main",
 			Content:   kit.View(screen.View),
-		})
+		}
+		if nativeWindowControls {
+			windowOptions.TitleBarStyle = mygo.TitleBarHidden
+			windowOptions.TrafficLightPosition = &mygo.Point{X: 10, Y: 8}
+		}
+		window = mygo.NewWindow(windowOptions)
 		if activationPending {
 			app.ActivateWindow(window)
 			activationPending = false

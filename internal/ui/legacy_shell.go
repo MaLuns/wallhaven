@@ -15,17 +15,24 @@ const (
 
 func (a *App) titleBar(c *kit.Context) {
 	p := legacyPalette(c)
+	barHeight, controlsLeft, controlsRight := float32(30), float32(0), float32(0)
+	if a.nativeWindowControls {
+		bar := c.TitleBar()
+		barHeight, controlsLeft, controlsRight = max(barHeight, bar.Height), bar.Left, bar.Right
+	}
 	foreground := hexColor("161616")
 	if c.Theme().Dark {
 		foreground = hexColor("e4e4e4")
 	}
-	kit.Row(c.Key("title-bar")).Label(locale.T("标题栏")).FillWidth().Height(30).Shrink(0).Background(p.Header).TextColor(foreground).DragWindow().AlignItems(kit.Center).Children(func() {
+	kit.Row(c.Key("title-bar")).Label(locale.T("标题栏")).FillWidth().Height(barHeight).Shrink(0).Padding(0, controlsRight, 0, controlsLeft).Background(p.Header).TextColor(foreground).DragWindow().AlignItems(kit.Center).Children(func() {
 		kit.Row(c.Key("brand")).Width(160).Padding(0, 10).Gap(6).AlignItems(kit.Center).Children(func() {
-			kit.Image(c, legacyBitmaps["logo"]).Size(20, 20)
+			if !a.nativeWindowControls {
+				kit.Image(c, legacyBitmaps["logo"]).Size(20, 20)
+			}
 			kit.Text(c, "One Wallhaven").FontSize(14).Bold()
 		})
 		kit.Box(c).Grow(1)
-		menu := legacyIconButton(c, "menu", "menu", "功能菜单", 16).Size(40, 30).OnClick(func() { a.menuOpen = !a.menuOpen })
+		menu := legacyIconButton(c, "menu", "menu", "功能菜单", 16).Size(40, barHeight).OnClick(func() { a.menuOpen = !a.menuOpen })
 		menuWidth := float32(180)
 		if locale.T("下载") != "下载" {
 			menuWidth = 240
@@ -66,17 +73,19 @@ func (a *App) titleBar(c *kit.Context) {
 				}
 			})
 		}).Background(p.Dialog).Radius(6)
-		legacyIconButton(c, "refresh", "refresh", "刷新当前页面", 16).Size(40, 30).OnClick(a.refresh)
-		legacyIconButton(c, "minimize", "minimize", "最小化", 16).Size(40, 30).OnClick(func() {
-			if a.onMinimize != nil {
-				a.onMinimize()
-			}
-		})
-		legacyIconButton(c, "close", "close", "关闭窗口", 16).Size(40, 30).OnClick(func() {
-			if a.onClose != nil {
-				a.onClose()
-			}
-		})
+		legacyIconButton(c, "refresh", "refresh", "刷新当前页面", 16).Size(40, barHeight).OnClick(a.refresh)
+		if !a.nativeWindowControls {
+			legacyIconButton(c, "minimize", "minimize", "最小化", 16).Size(40, barHeight).OnClick(func() {
+				if a.onMinimize != nil {
+					a.onMinimize()
+				}
+			})
+			legacyIconButton(c, "close", "close", "关闭窗口", 16).Size(40, barHeight).OnClick(func() {
+				if a.onClose != nil {
+					a.onClose()
+				}
+			})
+		}
 	})
 }
 

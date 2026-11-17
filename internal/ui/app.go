@@ -34,6 +34,7 @@ type App struct {
 	version               string
 	onCheckForUpdates     func()
 	onMinimize, onClose   func()
+	nativeWindowControls  bool
 	fullImages            DetailImageSource
 	dispatch              func(func())
 	viewer                detailViewer
@@ -75,22 +76,23 @@ type ThumbnailSource interface {
 }
 
 type Options struct {
-	Version             string
-	OnCheckForUpdates   func()
-	Images              ThumbnailSource
-	Appearance          string
-	OnMinimize, OnClose func()
-	FullImages          DetailImageSource
-	Dispatch            func(func())
-	Actions             *app.Actions
-	RevealFile          func(string)
-	Preferences         *app.Preferences
-	OnOpenSettings      func()
-	OnCloseSettings     func()
-	ChooseDirectory     func(string, func(string, error))
-	DesktopPreview      *app.DesktopPreview
-	ChosenLanguage      func() string
-	OnChangeLanguage    func(string)
+	Version              string
+	OnCheckForUpdates    func()
+	Images               ThumbnailSource
+	Appearance           string
+	OnMinimize, OnClose  func()
+	NativeWindowControls bool
+	FullImages           DetailImageSource
+	Dispatch             func(func())
+	Actions              *app.Actions
+	RevealFile           func(string)
+	Preferences          *app.Preferences
+	OnOpenSettings       func()
+	OnCloseSettings      func()
+	ChooseDirectory      func(string, func(string, error))
+	DesktopPreview       *app.DesktopPreview
+	ChosenLanguage       func() string
+	OnChangeLanguage     func(string)
 }
 
 func New(controller *app.Controller, options ...Options) *App {
@@ -103,6 +105,7 @@ func New(controller *app.Controller, options ...Options) *App {
 		a.appearance = options[0].Appearance
 		a.onMinimize = options[0].OnMinimize
 		a.onClose = options[0].OnClose
+		a.nativeWindowControls = options[0].NativeWindowControls
 		a.fullImages = options[0].FullImages
 		a.dispatch = options[0].Dispatch
 		a.actions = options[0].Actions

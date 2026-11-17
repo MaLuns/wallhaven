@@ -76,6 +76,51 @@ func TestLegacyMenuThemeAndWindowActions(t *testing.T) {
 	}
 }
 
+func TestNativeTitleBarReservesControlsAcrossWindowModes(t *testing.T) {
+	controller := app.New()
+	t.Cleanup(controller.Close)
+	screen := New(controller, Options{NativeWindowControls: true})
+	t.Cleanup(screen.Close)
+	tester := kit.NewTester(screen.View, 800, 540)
+	for _, test := range []struct {
+		name   string
+		width  float32
+		bar    kit.TitleBar
+		height float32
+	}{
+		{"window", 800, kit.TitleBar{Height: 30, Left: 64, Bottom: 22}, 30},
+		{"larger controls", 1300, kit.TitleBar{Height: 32, Left: 68, Bottom: 24}, 32},
+		{"full screen", 1300, kit.TitleBar{}, 30},
+		{"restored", 800, kit.TitleBar{Height: 30, Left: 64, Bottom: 22}, 30},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			tester.SetSize(int(test.width), 540)
+			tester.SetTitleBar(test.bar)
+			for label, want := range map[string]kit.Rect{
+				"标题栏":    {W: test.width, H: test.height},
+				"功能菜单":   {X: test.width - 80, W: 40, H: test.height},
+				"刷新当前页面": {X: test.width - 40, W: 40, H: test.height},
+			} {
+				if got, ok := tester.Find(label); !ok || got != want {
+					t.Fatalf("%s bounds=%+v want=%+v", label, got, want)
+				}
+			}
+			brand, ok := tester.Find("One Wallhaven")
+			if !ok || brand.X != test.bar.Left+10 {
+				t.Fatalf("brand overlaps native controls or lost its inset: %+v", brand)
+			}
+			if nav, ok := tester.Find("主导航"); !ok || nav.Y != test.height {
+				t.Fatalf("navigation does not follow the title bar: %+v", nav)
+			}
+			for _, label := range []string{"最小化", "关闭窗口"} {
+				if _, ok := tester.Find(label); ok {
+					t.Fatalf("custom window control %q is present with native controls", label)
+				}
+			}
+		})
+	}
+}
+
 func TestRecommendationImagesReturnAfterNavigation(t *testing.T) {
 	h := newCatalogHarness(t)
 	images := &countingImages{images: newCatalogImages(), seen: map[string]bool{}}
