@@ -265,8 +265,8 @@ func settingsRowHeight(c *kit.Context) float32 {
 
 func (a *App) settingsRow(c *kit.Context, label string, value func()) {
 	kit.Row(c.Key(label)).FillWidth().AlignItems(kit.Start).Children(func() {
-		kit.Row(c).Width(settingsLabelWidth).Height(settingsRowHeight(c)).Shrink(0).Padding(0, 20, 0, 0).AlignItems(kit.Center).Children(func() {
-			kit.Text(c, locale.T(label)).FontSize(13).TextColor(hexColor("969696")).Wrap()
+		kit.Row(c).Width(settingsLabelWidth).Height(settingsRowHeight(c)).Shrink(0).Padding(0, 30, 0, 0).AlignItems(kit.Center).Children(func() {
+			kit.Text(c, locale.T(label)).FillWidth().TextAlign(kit.End).FontSize(13).TextColor(hexColor("969696")).Wrap()
 		})
 		kit.Box(c).Grow(1).MinWidth(0).Children(value)
 	})
