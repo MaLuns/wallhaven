@@ -24,7 +24,7 @@ gh secret set MYGO_UPDATER_PRIVATE_KEY --repo MaLuns/wallhaven \
 
 备份这把私钥；后续发布沿用同一密钥，不要重新生成或随意替换 `updates.publicKey`。已安装的版本只接受对应私钥签名的更新。
 
-更新包签名与系统代码签名是两套机制。macOS 构建统一使用 `-sign -` 做 ad-hoc 签名，不读取本机开发证书或代码签名私钥；Windows 开发、构建和发布不做系统代码签名，不配置 Authenticode 证书或签名命令。两端的自动更新归档均保留 Ed25519 签名校验。
+更新包签名与系统代码签名是两套机制。macOS 构建统一使用 `-sign -` 做 ad-hoc 签名，不读取本机开发证书或代码签名私钥；Windows 开发、构建和发布不做系统代码签名，不配置 Authenticode 证书或签名命令。macOS、Windows 和 Linux 的自动更新归档均保留 Ed25519 签名校验。
 
 ## 发布流程
 
@@ -42,10 +42,10 @@ git push origin v1.1.1
 流程如下：
 
 1. 校验标签、分支、更新源及更新签名 Secret。缺少 Secret 时直接失败。
-2. 从日志 JSON 读取该版本内容生成 Release 草稿说明，将同一份说明写入三份更新清单；没有对应日志时发布失败。
-3. 检查应用，按标签版本分别构建 macOS Apple 芯片版（`darwin/arm64`）、macOS Intel 版（`darwin/amd64`，即 x86_64）及 Windows x64（`windows/amd64`），不再生成 Universal 包。
+2. 从日志 JSON 读取该版本内容生成 Release 草稿说明，将同一份说明写入四份更新清单；没有对应日志时发布失败。
+3. 检查应用，按标签版本分别构建 macOS Apple 芯片版（`darwin/arm64`）、macOS Intel 版（`darwin/amd64`，即 x86_64）、Windows x64（`windows/amd64`）及 Linux x64（`linux/amd64`），不再生成 Universal 包。
 4. 使用专用私钥签名更新归档；校验归档、增量文件的大小、SHA-256 摘要对应的 Ed25519 签名、版本和下载地址。
-5. 汇总三个构建目标的产物，生成一份完整的 `SHA256SUMS`，上传成功后发布草稿并将其设为最新 Release。
+5. 汇总四个构建目标的产物，生成一份完整的 `SHA256SUMS`，上传成功后发布草稿并将其设为最新 Release。
 
 标签必须与 `mygo.json` 的版本一致。CI 将标签版本写入构建配置，“关于”窗口显示的版本与更新清单、发布文件保持一致。
 
@@ -62,13 +62,19 @@ git push origin v1.1.1
 | macOS Apple 芯片手动安装 | `mygo-wallhaven-<版本>-macos-arm64.zip`，解压得到 `.app` |
 | macOS Intel 手动安装 | `mygo-wallhaven-<版本>-macos-amd64.zip`，解压得到 `.app` |
 | Windows 手动安装 | `mygo-wallhaven-setup-<版本>-amd64.exe`，安装到当前用户目录 |
+| Linux x64 安装 | `mygo-wallhaven-<版本>-linux-amd64.tar.gz`，使用共享的 `install.sh` 安装 |
 | macOS Apple 芯片自动更新 | `update-darwin-arm64.json`、`mygo-wallhaven-<版本>-darwin-arm64.tar.gz` |
 | macOS Intel 自动更新 | `update-darwin-amd64.json`、`mygo-wallhaven-<版本>-darwin-amd64.tar.gz` |
 | Windows 自动更新 | `update-windows-amd64.json`、`mygo-wallhaven-<版本>-windows-amd64.tar.gz` |
+| Linux x64 自动更新 | `update-linux-amd64.json`、`mygo-wallhaven-<版本>-linux-amd64.tar.gz` |
 | 可选增量更新 | MyGO 生成的 `*.delta`，首次发布没有此前签名归档时可不生成 |
-| 安装脚本与校验 | `install.sh`、`install.ps1`、包含三个构建目标全部文件的 `SHA256SUMS` |
+| 安装脚本与校验 | macOS 与 Linux 共享的 `install.sh`、Windows 的 `install.ps1`、包含四个构建目标全部文件的 `SHA256SUMS` |
 
-`SHA256SUMS` 用于检查下载完整性；应用内自动更新另用公钥验证归档签名。两端原始应用目录及私钥不会直接上传。后续版本保留早先的 Release 文件，供 MyGO 生成增量更新。
+`SHA256SUMS` 用于检查下载完整性；应用内自动更新另用公钥验证归档签名。各平台原始应用目录及私钥不会直接上传。后续版本保留早先的 Release 文件，供 MyGO 生成增量更新。
+
+Linux 配置使用 `linux.webview: false` 和 `linux.formats: []`，采用原生 UI，仅提供 tar.gz 归档，不生成 deb、rpm 等发行版专用包。运行需要系统 GTK 3 库；不需要 WebKitGTK。该 tar.gz 是 Linux x64 的通用分发形式，不代表已验证所有发行版兼容。
+
+Linux 用户将 `install.sh` 和 tar.gz 放在同一目录后执行 `sh install.sh`，脚本会将当前版本安装到用户可写的 `~/.local/mygo-wallhaven.app`，以便应用自动更新；脚本也可从最新 Release 下载归档，此方式需要 curl 或 wget，以及支持 Ed25519 校验的 OpenSSL 3.0 或更高版本。共享脚本在安装时检测系统和架构，内容不依赖构建宿主，工作流仅从 macOS arm64 构建收集一份，避免合并产物时覆盖同名文件。
 
 本地 `make dev` 不需要更新私钥；`make build` 没有私钥时仍可构建应用，但 MyGO 会跳过签名更新归档。CI 要求私钥存在且更新归档通过签名校验，避免把不完整的版本发布给已安装的客户端。
 
@@ -78,6 +84,6 @@ git push origin v1.1.1
 
 已发布的旧 Electron 客户端和未接入更新器的 MyGO 构建无法自行获得本次功能，需先手动安装首个启用自动更新的版本。之后才能通过下一次更高版本标签验收完整的“检查 → 下载 → 校验 → 安装 → 重启”流程。
 
-应用安装位置须可写：macOS 的 `/Applications` 或 `~/Applications`，Windows 安装程序默认的当前用户目录。应用内应先结束桌面预览，再执行更新重启。
+应用安装位置须可写：macOS 的 `/Applications` 或 `~/Applications`、Windows 安装程序默认的当前用户目录，以及 Linux 安装脚本使用的 `~/.local/mygo-wallhaven.app`。应用内应先结束桌面预览，再执行更新重启。
 
-上线时仍需核对：仓库 Secret 已保存、首个带更新文件的 Release 已成功发布、macOS 和 Windows 均完成从旧版更新到新版的真实验收。代码与本地打包验证不能代替这三项外部状态。
+上线时仍需核对：仓库 Secret 已保存、首个带更新文件的 Release 已成功发布、macOS 和 Windows 均完成从旧版更新到新版的真实验收。Linux 的实机启动、安装及自动更新验收尚未完成，需在目标发行版和桌面环境验证。代码与本地打包验证不能代替这些外部状态。

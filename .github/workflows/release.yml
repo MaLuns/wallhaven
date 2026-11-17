@@ -135,6 +135,10 @@ jobs:
             platform: windows/amd64
             artifact: windows-amd64
             output: build/windows-amd64
+          - runner: ubuntu-22.04
+            platform: linux/amd64
+            artifact: linux-amd64
+            output: build/linux-amd64
     defaults:
       run:
         shell: bash
@@ -158,6 +162,13 @@ jobs:
 
       - name: Download dependencies
         run: go mod download
+
+      - name: Install Linux runtime and test fonts
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgtk-3-0 fonts-dejavu-core fonts-noto-cjk
 
       - name: Check application
         run: |
@@ -202,6 +213,13 @@ jobs:
           MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
         run: go tool mygo build -platform "$BUILD_PLATFORM" -sign -
 
+      - name: Build Linux x64 archive
+        if: runner.os == 'Linux'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
+        run: make build MYGO_BUILD_FLAGS="-platform $BUILD_PLATFORM"
+
       - name: Verify and collect signed update files
         run: |
           go run ./.github/scripts/releasecheck \
@@ -212,11 +230,11 @@ jobs:
             "$BUILD_OUTPUT/mygo-wallhaven-$RELEASE_VERSION-$target.tar.gz" build/release/
           if [[ "$RUNNER_OS" == 'macOS' ]]; then
             cp "$BUILD_OUTPUT/mygo-wallhaven-$RELEASE_VERSION-macos-${BUILD_PLATFORM#*/}.zip" build/release/
-            # The installer detects the Mac's architecture; publish one shared copy.
+            # The installer supports macOS and Linux; publish one shared copy.
             if [[ "$BUILD_PLATFORM" == 'darwin/arm64' ]]; then
               cp "$BUILD_OUTPUT/install.sh" build/release/
             fi
-          else
+          elif [[ "$RUNNER_OS" == 'Windows' ]]; then
             cp "$BUILD_OUTPUT/install.ps1" \
               "$BUILD_OUTPUT/mygo-wallhaven-setup-$RELEASE_VERSION-amd64.exe" build/release/
           fi
@@ -267,7 +285,7 @@ jobs:
           RELEASE_VERSION: ${{ needs.validate.outputs.version }}
         run: |
           go run ./.github/scripts/releasecheck \
-            -dir release -version "$RELEASE_VERSION" -platforms darwin/arm64,darwin/amd64,windows/amd64
+            -dir release -version "$RELEASE_VERSION" -platforms darwin/arm64,darwin/amd64,windows/amd64,linux/amd64
           test -s release/install.sh
           test -s release/install.ps1
           test -s "release/mygo-wallhaven-$RELEASE_VERSION-macos-arm64.zip"

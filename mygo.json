@@ -16,5 +16,9 @@
   },
   "macos": {
     "signingIdentity": "-"
+  },
+  "linux": {
+    "webview": false,
+    "formats": []
   }
 }

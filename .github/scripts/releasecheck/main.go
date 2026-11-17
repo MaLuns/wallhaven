@@ -37,7 +37,7 @@ type manifest struct {
 	Deltas []signedFile `json:"deltas"`
 }
 
-const defaultPlatforms = "darwin/arm64,darwin/amd64,windows/amd64"
+const defaultPlatforms = "darwin/arm64,darwin/amd64,windows/amd64,linux/amd64"
 
 func main() {
 	directory := flag.String("dir", "release", "directory containing release files")
@@ -77,7 +77,7 @@ func check(directory, configuration, version string, platforms []string) error {
 	}
 	base := "https://github.com/" + c.Updates.GitHub + "/releases/download/" + url.PathEscape(prefix+version) + "/"
 	for _, platform := range platforms {
-		if platform != "darwin/arm64" && platform != "darwin/amd64" && platform != "windows/amd64" {
+		if platform != "darwin/arm64" && platform != "darwin/amd64" && platform != "windows/amd64" && platform != "linux/amd64" {
 			return fmt.Errorf("unsupported release platform %q", platform)
 		}
 		target := strings.ReplaceAll(platform, "/", "-")

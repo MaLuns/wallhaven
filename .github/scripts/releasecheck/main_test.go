@@ -30,7 +30,7 @@ func newReleaseFixture(t *testing.T) *releaseFixture {
 	f.config.Slug = "test-wallpapers"
 	f.config.Updates.GitHub = "example/wallpapers"
 	f.config.Updates.PublicKey = base64.StdEncoding.EncodeToString(pub)
-	for _, target := range []string{"darwin-arm64", "darwin-amd64", "windows-amd64"} {
+	for _, target := range []string{"darwin-arm64", "darwin-amd64", "windows-amd64", "linux-amd64"} {
 		f.manifests[target] = manifest{Version: "1.2.3", signedFile: f.writeSigned(t, "test-wallpapers-1.2.3-"+target+".tar.gz", []byte("archive for "+target))}
 	}
 	f.save(t)
@@ -75,7 +75,7 @@ func TestSignedRelease(t *testing.T) {
 		f.manifests[target] = m
 	}
 	f.save(t)
-	for _, platforms := range [][]string{{"darwin/arm64"}, {"darwin/amd64"}, {"windows/amd64"}, strings.Split(defaultPlatforms, ",")} {
+	for _, platforms := range [][]string{{"darwin/arm64"}, {"darwin/amd64"}, {"windows/amd64"}, {"linux/amd64"}, strings.Split(defaultPlatforms, ",")} {
 		if err := check(f.dir, f.configPath, "1.2.3", platforms); err != nil {
 			t.Fatal(err)
 		}
@@ -143,7 +143,7 @@ func TestRejectIncompleteOrInvalidUpdates(t *testing.T) {
 }
 
 func TestRejectMissingPlatform(t *testing.T) {
-	for _, target := range []string{"darwin-arm64", "darwin-amd64", "windows-amd64"} {
+	for _, target := range []string{"darwin-arm64", "darwin-amd64", "windows-amd64", "linux-amd64"} {
 		t.Run(target, func(t *testing.T) {
 			f := newReleaseFixture(t)
 			name := "update-" + target + ".json"
@@ -152,6 +152,36 @@ func TestRejectMissingPlatform(t *testing.T) {
 			}
 			if err := check(f.dir, f.configPath, "1.2.3", strings.Split(defaultPlatforms, ",")); err == nil || !strings.Contains(err.Error(), name) {
 				t.Fatalf("missing platform manifest was not rejected: %v", err)
+			}
+		})
+	}
+}
+
+func TestRejectInvalidLinuxUpdates(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		change func(*testing.T, *releaseFixture, *manifest)
+	}{
+		{"wrong platform archive", func(_ *testing.T, f *releaseFixture, m *manifest) {
+			m.signedFile = f.manifests["windows-amd64"].signedFile
+		}},
+		{"missing archive", func(t *testing.T, f *releaseFixture, m *manifest) {
+			if err := os.Remove(filepath.Join(f.dir, filepath.Base(m.URL))); err != nil {
+				t.Fatal(err)
+			}
+		}},
+		{"wrong signature", func(_ *testing.T, _ *releaseFixture, m *manifest) {
+			m.Signature = base64.StdEncoding.EncodeToString(make([]byte, ed25519.SignatureSize))
+		}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			f := newReleaseFixture(t)
+			m := f.manifests["linux-amd64"]
+			test.change(t, f, &m)
+			f.manifests["linux-amd64"] = m
+			f.save(t)
+			if err := check(f.dir, f.configPath, "1.2.3", strings.Split(defaultPlatforms, ",")); err == nil || !strings.Contains(err.Error(), "update-linux-amd64.json") {
+				t.Fatalf("invalid Linux update was not rejected: %v", err)
 			}
 		})
 	}
