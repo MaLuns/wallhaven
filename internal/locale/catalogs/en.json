@@ -520,5 +520,13 @@
   "release111DiskCache": "Added persistent thumbnail and original image caches with usage statistics, cleanup, and adjustable size limits.",
   "release111SettingsChild": "Settings on macOS now uses a native child window, opens centered over the main window, and supports dragging and resizing.",
   "release111SettingsLayout": "Aligned Settings labels, buttons, and cache controls, and improved long folder paths and dropdowns in smaller windows.",
-  "release112CILanguageIsolation": "Fixed release checks failing under different language environments and strengthened pre-release validation."
+  "release112CILanguageIsolation": "Fixed release checks failing under different language environments and strengthened pre-release validation.",
+  "windowsPreviewNoDesktopHost": "No compatible Windows desktop preview layer was found; check that Explorer is running correctly",
+  "windowsPreviewIncompatibleDPI": "The desktop and app use incompatible DPI modes; desktop preview cannot start safely",
+  "windowsPreviewScreenNotCovered": "The Windows desktop preview layer does not cover this screen",
+  "windowsPreviewNativeFailure": "A Windows desktop preview window operation failed",
+  "windowsPreviewPositionMismatch": "The Windows desktop preview window position could not be verified",
+  "windowsPreviewOrderMismatch": "The Windows desktop preview window order could not be verified",
+  "windowsPreviewCannotHideWindow": "Could not safely hide app window %s; close it or check permissions: %w",
+  "windowsPreviewCannotReadWindow": "Could not read app window state: %w"
 }

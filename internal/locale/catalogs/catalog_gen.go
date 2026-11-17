@@ -5667,3 +5667,91 @@ func Release112CILanguageIsolation() string { return In(i18n.Locale()).Release11
 func (msgs Messages) Release112CILanguageIsolation() string {
 	return Catalog.Format(msgs.locale, "release112CILanguageIsolation", nil)
 }
+
+// WindowsPreviewNoDesktopHost says "未找到可用的 Windows 桌面预览层级，请检查资源管理器是否正常运行"
+// in the language the app shows.
+func WindowsPreviewNoDesktopHost() string { return In(i18n.Locale()).WindowsPreviewNoDesktopHost() }
+
+// WindowsPreviewNoDesktopHost says "未找到可用的 Windows 桌面预览层级，请检查资源管理器是否正常运行"
+// in the language of msgs.
+func (msgs Messages) WindowsPreviewNoDesktopHost() string {
+	return Catalog.Format(msgs.locale, "windowsPreviewNoDesktopHost", nil)
+}
+
+// WindowsPreviewIncompatibleDPI says "Windows 桌面与应用的 DPI 模式不兼容，无法安全开启桌面预览"
+// in the language the app shows.
+func WindowsPreviewIncompatibleDPI() string { return In(i18n.Locale()).WindowsPreviewIncompatibleDPI() }
+
+// WindowsPreviewIncompatibleDPI says "Windows 桌面与应用的 DPI 模式不兼容，无法安全开启桌面预览"
+// in the language of msgs.
+func (msgs Messages) WindowsPreviewIncompatibleDPI() string {
+	return Catalog.Format(msgs.locale, "windowsPreviewIncompatibleDPI", nil)
+}
+
+// WindowsPreviewScreenNotCovered says "Windows 桌面预览层级未覆盖当前屏幕"
+// in the language the app shows.
+func WindowsPreviewScreenNotCovered() string {
+	return In(i18n.Locale()).WindowsPreviewScreenNotCovered()
+}
+
+// WindowsPreviewScreenNotCovered says "Windows 桌面预览层级未覆盖当前屏幕"
+// in the language of msgs.
+func (msgs Messages) WindowsPreviewScreenNotCovered() string {
+	return Catalog.Format(msgs.locale, "windowsPreviewScreenNotCovered", nil)
+}
+
+// WindowsPreviewNativeFailure says "Windows 桌面预览窗口操作失败"
+// in the language the app shows.
+func WindowsPreviewNativeFailure() string { return In(i18n.Locale()).WindowsPreviewNativeFailure() }
+
+// WindowsPreviewNativeFailure says "Windows 桌面预览窗口操作失败"
+// in the language of msgs.
+func (msgs Messages) WindowsPreviewNativeFailure() string {
+	return Catalog.Format(msgs.locale, "windowsPreviewNativeFailure", nil)
+}
+
+// WindowsPreviewPositionMismatch says "Windows 桌面预览窗口位置校验失败"
+// in the language the app shows.
+func WindowsPreviewPositionMismatch() string {
+	return In(i18n.Locale()).WindowsPreviewPositionMismatch()
+}
+
+// WindowsPreviewPositionMismatch says "Windows 桌面预览窗口位置校验失败"
+// in the language of msgs.
+func (msgs Messages) WindowsPreviewPositionMismatch() string {
+	return Catalog.Format(msgs.locale, "windowsPreviewPositionMismatch", nil)
+}
+
+// WindowsPreviewOrderMismatch says "Windows 桌面预览窗口层级校验失败"
+// in the language the app shows.
+func WindowsPreviewOrderMismatch() string { return In(i18n.Locale()).WindowsPreviewOrderMismatch() }
+
+// WindowsPreviewOrderMismatch says "Windows 桌面预览窗口层级校验失败"
+// in the language of msgs.
+func (msgs Messages) WindowsPreviewOrderMismatch() string {
+	return Catalog.Format(msgs.locale, "windowsPreviewOrderMismatch", nil)
+}
+
+// WindowsPreviewCannotHideWindow says "无法安全隐藏应用窗口 %s，请关闭该窗口或检查权限：%w"
+// in the language the app shows.
+func WindowsPreviewCannotHideWindow() string {
+	return In(i18n.Locale()).WindowsPreviewCannotHideWindow()
+}
+
+// WindowsPreviewCannotHideWindow says "无法安全隐藏应用窗口 %s，请关闭该窗口或检查权限：%w"
+// in the language of msgs.
+func (msgs Messages) WindowsPreviewCannotHideWindow() string {
+	return Catalog.Format(msgs.locale, "windowsPreviewCannotHideWindow", nil)
+}
+
+// WindowsPreviewCannotReadWindow says "无法读取应用窗口状态：%w"
+// in the language the app shows.
+func WindowsPreviewCannotReadWindow() string {
+	return In(i18n.Locale()).WindowsPreviewCannotReadWindow()
+}
+
+// WindowsPreviewCannotReadWindow says "无法读取应用窗口状态：%w"
+// in the language of msgs.
+func (msgs Messages) WindowsPreviewCannotReadWindow() string {
+	return Catalog.Format(msgs.locale, "windowsPreviewCannotReadWindow", nil)
+}

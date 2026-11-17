@@ -520,5 +520,13 @@
   "release111DiskCache": "新增缩略图与原图磁盘缓存，重启后可复用，并支持查看占用、清理及调整容量上限。",
   "release111SettingsChild": "macOS 设置窗口使用原生子窗体关联，打开时居中于主窗口，支持拖拽与调整大小。",
   "release111SettingsLayout": "整理设置界面的标签、按钮及缓存区域排版，优化长目录路径和小窗口下拉菜单显示。",
-  "release112CILanguageIsolation": "修复多语言环境下发布检查失败的问题，完善发布前验证。"
+  "release112CILanguageIsolation": "修复多语言环境下发布检查失败的问题，完善发布前验证。",
+  "windowsPreviewNoDesktopHost": "未找到可用的 Windows 桌面预览层级，请检查资源管理器是否正常运行",
+  "windowsPreviewIncompatibleDPI": "Windows 桌面与应用的 DPI 模式不兼容，无法安全开启桌面预览",
+  "windowsPreviewScreenNotCovered": "Windows 桌面预览层级未覆盖当前屏幕",
+  "windowsPreviewNativeFailure": "Windows 桌面预览窗口操作失败",
+  "windowsPreviewPositionMismatch": "Windows 桌面预览窗口位置校验失败",
+  "windowsPreviewOrderMismatch": "Windows 桌面预览窗口层级校验失败",
+  "windowsPreviewCannotHideWindow": "无法安全隐藏应用窗口 %s，请关闭该窗口或检查权限：%w",
+  "windowsPreviewCannotReadWindow": "无法读取应用窗口状态：%w"
 }

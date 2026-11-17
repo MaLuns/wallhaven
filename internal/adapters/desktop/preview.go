@@ -12,13 +12,20 @@ import (
 )
 
 // Only this narrow part varies by OS. The MyGO surfaces, interaction and
-// lifecycle stay common; future Windows/Linux implementations replace this
+// lifecycle stay common; platform implementations replace this
 // interface without introducing a second viewer or a wallpaper-setting path.
 type previewPlatform interface {
 	available() bool
 	prepareWindow(uintptr, mygo.Rectangle) error
 	hideApplications(func(error))
 	restoreApplications(func(error))
+}
+
+// Windows scopes each background's DPI and commits its sibling order after
+// MyGO has shown the first frame. Other platforms use the common window path.
+type previewBackgroundPlatform interface {
+	newBackground(mygo.WindowOptions) (*mygo.Window, error)
+	showBackground(*mygo.Window) error
 }
 
 type PreviewOptions struct {
@@ -94,19 +101,47 @@ func (p *Preview) Open(complete func(error)) {
 		if bounds.Width <= 0 || bounds.Height <= 0 {
 			continue
 		}
-		window := mygo.NewWindow(mygo.WindowOptions{
+		options := mygo.WindowOptions{
 			Title: locale.T("桌面壁纸预览"), Width: bounds.Width, Height: bounds.Height,
-			Hidden: true, Frameless: true, DisableResize: true, DisableMove: true,
+			Hidden: true, Frameless: true, DisableResize: true,
 			DisableMinimize: true, DisableMaximize: true, DisableFullScreen: true, DisableShadow: true, SkipTaskbar: true,
 			BackgroundColor: "#191d30", Content: kit.View(p.options.Wallpaper),
-		})
-		p.backgrounds = append(p.backgrounds, window)
-		window.SetBounds(bounds)
-		if err := p.platform.prepareWindow(window.NativeHandle(), bounds); err != nil {
+		}
+		window, err := p.newBackground(options)
+		if request != p.request {
+			return
+		}
+		if err != nil {
 			complete(err)
 			return
 		}
+		p.backgrounds = append(p.backgrounds, window)
 		window.OnClose(func(e *mygo.CloseEvent) { e.PreventDefault(); p.exitRequested() })
+		window.OnClosed(func() {
+			// Explorer can destroy a parented desktop surface without OnClose.
+			// Normal cleanup increments request before destroying our windows.
+			if request == p.request {
+				p.exitRequested()
+			}
+		})
+		window.SetBounds(bounds)
+		if request != p.request {
+			return
+		}
+		err = p.platform.prepareWindow(window.NativeHandle(), bounds)
+		if request != p.request {
+			return
+		}
+		if err != nil {
+			complete(err)
+			return
+		}
+		// MyGO's Windows backend also blocks programmatic positioning when
+		// movement is disabled. Lock only after screen and desktop placement.
+		window.SetMovable(false)
+		if request != p.request {
+			return
+		}
 	}
 	if len(p.backgrounds) == 0 {
 		complete(errors.New(locale.T("未找到可用屏幕")))
@@ -119,13 +154,30 @@ func (p *Preview) Open(complete func(error)) {
 		complete(errors.New(locale.T("当前屏幕可用区域过小，无法显示桌面预览操作栏")))
 		return
 	}
-	p.controls = mygo.NewWindow(mygo.WindowOptions{
+	controls := mygo.NewWindow(mygo.WindowOptions{
 		Title: locale.T("桌面预览"), Width: width, Height: height,
-		Hidden: true, Frameless: true, Panel: true, DisableResize: true, DisableMove: true,
+		Hidden: true, Frameless: true, Panel: true, DisableResize: true,
 		Transparent: true, DisableShadow: true, BackgroundColor: "#00000000", Content: kit.View(p.options.Controls),
 	})
-	p.controls.SetBounds(mygo.Rectangle{X: workArea.X + (workArea.Width-width)/2, Y: workArea.Y + workArea.Height - height - 20, Width: width, Height: height})
-	p.controls.OnClose(func(e *mygo.CloseEvent) { e.PreventDefault(); p.exitRequested() })
+	if request != p.request {
+		controls.Destroy()
+		return
+	}
+	p.controls = controls
+	controls.OnClose(func(e *mygo.CloseEvent) { e.PreventDefault(); p.exitRequested() })
+	controls.OnClosed(func() {
+		if request == p.request {
+			p.exitRequested()
+		}
+	})
+	controls.SetBounds(mygo.Rectangle{X: workArea.X + (workArea.Width-width)/2, Y: workArea.Y + workArea.Height - height - 20, Width: width, Height: height})
+	if request != p.request {
+		return
+	}
+	controls.SetMovable(false)
+	if request != p.request {
+		return
+	}
 	if err := p.shortcuts.start(p.options.Previous, p.options.Next, p.exitRequested); err != nil {
 		complete(err)
 		return
@@ -141,21 +193,73 @@ func (p *Preview) Open(complete func(error)) {
 		}
 		if p.options.SettingsWindow != nil {
 			settings := p.options.SettingsWindow()
+			if request != p.request {
+				return
+			}
 			if settings != nil && !settings.IsDestroyed() && settings.IsVisible() {
 				p.settings = settings
 				settings.Hide()
 			}
 		}
+		if request != p.request {
+			return
+		}
 		if p.mainVisible {
 			main.Hide()
 		}
-		for _, window := range p.backgrounds {
-			window.ShowInactive()
+		if request != p.request {
+			return
 		}
-		p.controls.Show()
-		p.controls.Focus()
+		for _, window := range p.backgrounds {
+			err := p.showBackground(window)
+			if request != p.request {
+				return
+			}
+			if err != nil {
+				complete(err)
+				return
+			}
+		}
+		controls.Show()
+		if request != p.request {
+			return
+		}
+		controls.Focus()
+		if request != p.request {
+			return
+		}
 		complete(nil)
 	})
+}
+
+func (p *Preview) newBackground(options mygo.WindowOptions) (window *mygo.Window, err error) {
+	request := p.request
+	if platform, ok := p.platform.(previewBackgroundPlatform); ok {
+		window, err = platform.newBackground(options)
+	} else {
+		window = mygo.NewWindow(options)
+	}
+	if request != p.request {
+		if window != nil {
+			window.Destroy()
+		}
+		return nil, errPreviewInterrupted
+	}
+	return window, err
+}
+
+func (p *Preview) showBackground(window *mygo.Window) error {
+	request := p.request
+	var err error
+	if platform, ok := p.platform.(previewBackgroundPlatform); ok {
+		err = platform.showBackground(window)
+	} else {
+		window.ShowInactive()
+	}
+	if request != p.request {
+		return errPreviewInterrupted
+	}
+	return err
 }
 
 func (p *Preview) exitRequested() {
