@@ -42,10 +42,10 @@ git push origin v1.1.1
 流程如下：
 
 1. 校验标签、分支、更新源及更新签名 Secret。缺少 Secret 时直接失败。
-2. 从日志 JSON 读取该版本内容生成 Release 草稿说明，将同一份说明写入两端更新清单；没有对应日志时发布失败。
-3. 检查应用，按标签版本构建 macOS Universal（arm64 与 x86_64）及 Windows x64。
+2. 从日志 JSON 读取该版本内容生成 Release 草稿说明，将同一份说明写入三份更新清单；没有对应日志时发布失败。
+3. 检查应用，按标签版本分别构建 macOS Apple 芯片版（`darwin/arm64`）、macOS Intel 版（`darwin/amd64`，即 x86_64）及 Windows x64（`windows/amd64`），不再生成 Universal 包。
 4. 使用专用私钥签名更新归档；校验归档、增量文件的大小、SHA-256 摘要对应的 Ed25519 签名、版本和下载地址。
-5. 汇总两端产物，生成一份完整的 `SHA256SUMS`，上传成功后发布草稿并将其设为最新 Release。
+5. 汇总三个构建目标的产物，生成一份完整的 `SHA256SUMS`，上传成功后发布草稿并将其设为最新 Release。
 
 标签必须与 `mygo.json` 的版本一致。CI 将标签版本写入构建配置，“关于”窗口显示的版本与更新清单、发布文件保持一致。
 
@@ -59,16 +59,20 @@ git push origin v1.1.1
 
 | 用途 | 文件 |
 | --- | --- |
-| macOS 手动安装 | `mygo-wallhaven-<版本>-macos-universal.zip`，解压得到 `.app` |
+| macOS Apple 芯片手动安装 | `mygo-wallhaven-<版本>-macos-arm64.zip`，解压得到 `.app` |
+| macOS Intel 手动安装 | `mygo-wallhaven-<版本>-macos-amd64.zip`，解压得到 `.app` |
 | Windows 手动安装 | `mygo-wallhaven-setup-<版本>-amd64.exe`，安装到当前用户目录 |
-| macOS 自动更新 | `update-darwin-universal.json`、`mygo-wallhaven-<版本>-darwin-universal.tar.gz` |
+| macOS Apple 芯片自动更新 | `update-darwin-arm64.json`、`mygo-wallhaven-<版本>-darwin-arm64.tar.gz` |
+| macOS Intel 自动更新 | `update-darwin-amd64.json`、`mygo-wallhaven-<版本>-darwin-amd64.tar.gz` |
 | Windows 自动更新 | `update-windows-amd64.json`、`mygo-wallhaven-<版本>-windows-amd64.tar.gz` |
 | 可选增量更新 | MyGO 生成的 `*.delta`，首次发布没有此前签名归档时可不生成 |
-| 安装脚本与校验 | `install.sh`、`install.ps1`、包含两端全部文件的 `SHA256SUMS` |
+| 安装脚本与校验 | `install.sh`、`install.ps1`、包含三个构建目标全部文件的 `SHA256SUMS` |
 
 `SHA256SUMS` 用于检查下载完整性；应用内自动更新另用公钥验证归档签名。两端原始应用目录及私钥不会直接上传。后续版本保留早先的 Release 文件，供 MyGO 生成增量更新。
 
 本地 `make dev` 不需要更新私钥；`make build` 没有私钥时仍可构建应用，但 MyGO 会跳过签名更新归档。CI 要求私钥存在且更新归档通过签名校验，避免把不完整的版本发布给已安装的客户端。
+
+更新清单地址在构建时按目标架构固定。已安装的 Universal 版本仍请求 `update-darwin-universal.json`，不会自动改用按架构发布的清单；切换后的新版本发布后，这些用户需按 Mac 芯片类型手动安装对应版本一次，后续更新沿用该架构的清单。
 
 ## 首次上线与验收
 

@@ -1,4 +1,4 @@
-// Verify the signed files that both builders must publish for MyGO's updater.
+// Verify the signed files that the builders must publish for MyGO's updater.
 package main
 
 import (
@@ -37,10 +37,12 @@ type manifest struct {
 	Deltas []signedFile `json:"deltas"`
 }
 
+const defaultPlatforms = "darwin/arm64,darwin/amd64,windows/amd64"
+
 func main() {
 	directory := flag.String("dir", "release", "directory containing release files")
 	version := flag.String("version", "", "version without the v prefix")
-	platforms := flag.String("platforms", "darwin/universal,windows/amd64", "comma-separated build platforms")
+	platforms := flag.String("platforms", defaultPlatforms, "comma-separated build platforms")
 	configuration := flag.String("config", "mygo.json", "application configuration")
 	flag.Parse()
 	if err := check(*directory, *configuration, *version, strings.Split(*platforms, ",")); err != nil {
@@ -75,7 +77,7 @@ func check(directory, configuration, version string, platforms []string) error {
 	}
 	base := "https://github.com/" + c.Updates.GitHub + "/releases/download/" + url.PathEscape(prefix+version) + "/"
 	for _, platform := range platforms {
-		if platform != "darwin/universal" && platform != "windows/amd64" {
+		if platform != "darwin/arm64" && platform != "darwin/amd64" && platform != "windows/amd64" {
 			return fmt.Errorf("unsupported release platform %q", platform)
 		}
 		target := strings.ReplaceAll(platform, "/", "-")
