@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 	"unsafe"
@@ -136,19 +138,39 @@ func previewWindowsFind(parent, after uintptr, class string) uintptr {
 	return r
 }
 
-var previewWindowsEnumCallback = syscall.NewCallback(func(window, data uintptr) uintptr {
-	result := (*[]uintptr)(unsafe.Pointer(data))
-	*result = append(*result, window)
-	return 1
-})
+var (
+	previewWindowEnumerationID atomic.Uintptr
+	previewWindowEnumerations  sync.Map // uintptr to *[]uintptr
+	previewWindowsEnumCallback = windows.NewCallback(func(window, id uintptr) uintptr {
+		value, ok := previewWindowEnumerations.Load(id)
+		if !ok {
+			return 0
+		}
+		handles := value.(*[]uintptr)
+		*handles = append(*handles, window)
+		return 1
+	})
+)
 
 func previewWindowsEnumerate() ([]uintptr, error) {
-	var result []uintptr
-	r, _, err := previewWinEnumWindows.Call(previewWindowsEnumCallback, uintptr(unsafe.Pointer(&result)))
-	if r == 0 {
+	handles, err := enumerateWindowsPreviewHandles()
+	if err != nil {
 		return nil, previewWindowsError("EnumWindows", err)
 	}
-	return result, nil
+	return handles, nil
+}
+
+func enumerateWindowsPreviewHandles() ([]uintptr, error) {
+	// EnumWindows calls back synchronously. Pass an integer in LPARAM and
+	// keep each enumeration's result in Go for the duration of the call.
+	var handles []uintptr
+	id := previewWindowEnumerationID.Add(1)
+	previewWindowEnumerations.Store(id, &handles)
+	defer previewWindowEnumerations.Delete(id)
+	if result, _, err := previewWinEnumWindows.Call(previewWindowsEnumCallback, id); result == 0 {
+		return nil, err
+	}
+	return handles, nil
 }
 
 func previewWindowsProcessID(window uintptr) uint32 {

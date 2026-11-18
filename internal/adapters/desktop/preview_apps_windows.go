@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"runtime"
+	"syscall"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -28,20 +29,17 @@ var (
 	windowsPreviewAppsGetProp          = windowsPreviewAppsUser32.NewProc("GetPropW")
 	windowsPreviewAppsRemoveProp       = windowsPreviewAppsUser32.NewProc("RemovePropW")
 	windowsPreviewAppsShowWindowAsync  = windowsPreviewAppsUser32.NewProc("ShowWindowAsync")
-	windowsPreviewAppsEnumCallback     = windows.NewCallback(func(handle, data uintptr) uintptr {
-		handles := (*[]uintptr)(unsafe.Pointer(data))
-		*handles = append(*handles, handle)
-		return 1
-	})
 )
 
 func snapshotWindowsPreviewApplications() ([]previewApplication, error) {
 	api := &windowsPreviewAppsAPI{process: windows.GetCurrentProcessId()}
 	api.enumerate = func() ([]uintptr, error) {
-		var handles []uintptr
-		err := windows.EnumWindows(windowsPreviewAppsEnumCallback, unsafe.Pointer(&handles))
-		runtime.KeepAlive(&handles)
+		handles, err := enumerateWindowsPreviewHandles()
 		if err != nil {
+			if err == windows.ERROR_SUCCESS {
+				// Match the fallback in windows.EnumWindows when the call sets no error.
+				err = syscall.EINVAL
+			}
 			return nil, fmt.Errorf("%s: %w", locale.T("无法读取正在运行的应用"), err)
 		}
 		return handles, nil
