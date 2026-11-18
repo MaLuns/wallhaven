@@ -5755,3 +5755,57 @@ func WindowsPreviewCannotReadWindow() string {
 func (msgs Messages) WindowsPreviewCannotReadWindow() string {
 	return Catalog.Format(msgs.locale, "windowsPreviewCannotReadWindow", nil)
 }
+
+// Release113WindowsDesktopPreview says "Windows 新增桌面预览模式，在桌面图标下方显示壁纸，退出时恢复本次预览隐藏的窗口。"
+// in the language the app shows.
+func Release113WindowsDesktopPreview() string {
+	return In(i18n.Locale()).Release113WindowsDesktopPreview()
+}
+
+// Release113WindowsDesktopPreview says "Windows 新增桌面预览模式，在桌面图标下方显示壁纸，退出时恢复本次预览隐藏的窗口。"
+// in the language of msgs.
+func (msgs Messages) Release113WindowsDesktopPreview() string {
+	return Catalog.Format(msgs.locale, "release113WindowsDesktopPreview", nil)
+}
+
+// Release113MacOSWindowControls says "macOS 主窗口使用原生窗口按钮，并调整标题栏布局。"
+// in the language the app shows.
+func Release113MacOSWindowControls() string { return In(i18n.Locale()).Release113MacOSWindowControls() }
+
+// Release113MacOSWindowControls says "macOS 主窗口使用原生窗口按钮，并调整标题栏布局。"
+// in the language of msgs.
+func (msgs Messages) Release113MacOSWindowControls() string {
+	return Catalog.Format(msgs.locale, "release113MacOSWindowControls", nil)
+}
+
+// Release113MacOSArchitecturePackages says "macOS 分别提供 Apple 芯片与 Intel 安装包和更新清单。旧版 Universal …"
+// in the language the app shows.
+func Release113MacOSArchitecturePackages() string {
+	return In(i18n.Locale()).Release113MacOSArchitecturePackages()
+}
+
+// Release113MacOSArchitecturePackages says "macOS 分别提供 Apple 芯片与 Intel 安装包和更新清单。旧版 Universal …"
+// in the language of msgs.
+func (msgs Messages) Release113MacOSArchitecturePackages() string {
+	return Catalog.Format(msgs.locale, "release113MacOSArchitecturePackages", nil)
+}
+
+// Release113LinuxDistribution says "新增 Linux x64 安装包和自动更新。"
+// in the language the app shows.
+func Release113LinuxDistribution() string { return In(i18n.Locale()).Release113LinuxDistribution() }
+
+// Release113LinuxDistribution says "新增 Linux x64 安装包和自动更新。"
+// in the language of msgs.
+func (msgs Messages) Release113LinuxDistribution() string {
+	return Catalog.Format(msgs.locale, "release113LinuxDistribution", nil)
+}
+
+// Release113SettingsAlignment says "设置页标签改为右对齐，并增加标签与控件之间的间距。"
+// in the language the app shows.
+func Release113SettingsAlignment() string { return In(i18n.Locale()).Release113SettingsAlignment() }
+
+// Release113SettingsAlignment says "设置页标签改为右对齐，并增加标签与控件之间的间距。"
+// in the language of msgs.
+func (msgs Messages) Release113SettingsAlignment() string {
+	return Catalog.Format(msgs.locale, "release113SettingsAlignment", nil)
+}

@@ -528,5 +528,10 @@
   "windowsPreviewPositionMismatch": "The Windows desktop preview window position could not be verified",
   "windowsPreviewOrderMismatch": "The Windows desktop preview window order could not be verified",
   "windowsPreviewCannotHideWindow": "Could not safely hide app window %s; close it or check permissions: %w",
-  "windowsPreviewCannotReadWindow": "Could not read app window state: %w"
+  "windowsPreviewCannotReadWindow": "Could not read app window state: %w",
+  "release113WindowsDesktopPreview": "Added Windows desktop preview, which shows wallpapers beneath desktop icons and restores windows hidden during the session on exit.",
+  "release113MacOSWindowControls": "The macOS main window now uses native window controls and an updated title bar layout.",
+  "release113MacOSArchitecturePackages": "macOS now has separate downloads and update feeds for Apple silicon and Intel Macs. Users with a Universal build need to install the matching version manually once.",
+  "release113LinuxDistribution": "Added a Linux x64 package and automatic updates.",
+  "release113SettingsAlignment": "Right-aligned Settings labels and increased the spacing between labels and controls."
 }

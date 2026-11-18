@@ -528,5 +528,10 @@
   "windowsPreviewPositionMismatch": "Windows 桌面预览窗口位置校验失败",
   "windowsPreviewOrderMismatch": "Windows 桌面预览窗口层级校验失败",
   "windowsPreviewCannotHideWindow": "无法安全隐藏应用窗口 %s，请关闭该窗口或检查权限：%w",
-  "windowsPreviewCannotReadWindow": "无法读取应用窗口状态：%w"
+  "windowsPreviewCannotReadWindow": "无法读取应用窗口状态：%w",
+  "release113WindowsDesktopPreview": "Windows 新增桌面预览模式，在桌面图标下方显示壁纸，退出时恢复本次预览隐藏的窗口。",
+  "release113MacOSWindowControls": "macOS 主窗口使用原生窗口按钮，并调整标题栏布局。",
+  "release113MacOSArchitecturePackages": "macOS 分别提供 Apple 芯片与 Intel 安装包和更新清单。旧版 Universal 用户需手动安装对应版本一次。",
+  "release113LinuxDistribution": "新增 Linux x64 安装包和自动更新。",
+  "release113SettingsAlignment": "设置页标签改为右对齐，并增加标签与控件之间的间距。"
 }
