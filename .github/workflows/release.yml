@@ -154,27 +154,8 @@ jobs:
         with:
           ref: ${{ needs.validate.outputs.commit }}
 
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: go.sum
-
-      - name: Download dependencies
-        run: go mod download
-
-      - name: Install Linux runtime and test fonts
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libgtk-3-0 fonts-dejavu-core fonts-noto-cjk
-
       - name: Check application
-        run: |
-          go test ./...
-          go test ./.github/scripts/releasecheck
-          go tool mygo vet .
+        uses: ./.github/actions/check-release
 
       - name: Download update notes
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8

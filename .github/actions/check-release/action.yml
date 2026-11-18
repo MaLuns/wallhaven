@@ -1,0 +1,33 @@
+name: Check release application
+description: Set up Go and run the checks shared by preflight and release.
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Go
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      with:
+        go-version-file: go.mod
+        cache-dependency-path: go.sum
+
+    - name: Download dependencies
+      shell: bash
+      run: go mod download
+
+    - name: Install Linux runtime and test fonts
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends \
+          libgtk-3-0 fonts-dejavu-core fonts-noto-cjk
+
+    - name: Check application
+      shell: bash
+      env:
+        CGO_ENABLED: '0'
+        WALLHAVEN_LIVE_TEST: '0'
+      run: |
+        go test ./...
+        go test ./.github/scripts/releasecheck
+        go tool mygo vet .

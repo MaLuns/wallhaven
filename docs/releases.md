@@ -28,18 +28,20 @@ gh secret set MYGO_UPDATER_PRIVATE_KEY --repo MaLuns/wallhaven \
 
 ## 发布流程
 
-每次发布先更新 `mygo.json` 的 `version`，并在 `internal/changelog/log.json` 最前面补上同版本日志。将代码提交到 `master` 后，在该分支的提交上创建并推送对应版本标签。以下示例版本应替换为尚未使用的新版本号：
+每次发布先更新 `mygo.json` 的 `version`，在 `internal/changelog/log.json` 最前面补上同版本日志，并更新中英文目录及其生成文件。按 `AGENTS.md` 对最终内容完成本地检查，再将发布提交推送到 `master`。
+
+在 GitHub Actions 打开 **Release preflight**，从 `master` 运行工作流。预检检查版本、更新日志和更新签名配置，并在 macOS、Windows x64 和 Linux x64 上运行测试、发布校验测试和 MyGO vet。全部通过后，GitHub Actions 为本次检查的提交写入 `release-preflight/verified` 成功状态。仓库的标签规则要求目标提交拥有这个状态才能创建远端发布标签。若预检后修改了待发布内容，需在新提交上重跑预检。
+
+确认预检运行所显示的提交 SHA 与准备打标签的提交一致，再创建并推送附注标签。以下示例中的版本号和提交 SHA 应替换为实际值。
 
 ```sh
-git switch master
-git pull --ff-only
-git tag v1.1.1
-git push origin v1.1.1
+git tag -a v1.1.4 '通过预检的提交SHA' -m 'MyGO Wallhaven v1.1.4'
+git push origin refs/tags/v1.1.4
 ```
 
 工作流仅接收 `v主版本.次版本.修订版本`，不接受前导零、测试版或附加后缀。标签提交必须位于远程 `master` 历史中；发布前再次校验标签仍指向本次构建的提交。旧 Electron 的 `v1.0.0` 标签已存在，应使用新版本号。
 
-流程如下：
+标签推送后，正式发布流程按以下顺序执行。
 
 1. 校验标签、分支、更新源及更新签名 Secret。缺少 Secret 时直接失败。
 2. 从日志 JSON 读取该版本内容生成 Release 草稿说明，将同一份说明写入四份更新清单；没有对应日志时发布失败。
